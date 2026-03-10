@@ -1,264 +1,164 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
 <meta charset="utf-8">
-<title>ASSIEME XR Viewer</title>
-
-<script type="module"
-src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<title>XR Machine Controller</title>
 
 <style>
-
 body{
 margin:0;
-background:#000;
-font-family:sans-serif;
+overflow:hidden;
 }
-
-/* MODEL VIEWER FULLSCREEN */
-
-model-viewer{
-width:100vw;
-height:100vh;
-background:#000;
+canvas{
+display:block;
 }
-
-/* AR BUTTON */
-
-model-viewer::part(default-ar-button){
-width:110px;
-height:110px;
-border-radius:50%;
-background:white;
-}
-
-/* HOTSPOT BUTTON */
-
-.hotspot{
-
-width:70px;
-height:70px;
-
-border-radius:50%;
-border:none;
-
-background:#1e1e1e;
-color:white;
-
-font-size:20px;
-font-weight:bold;
-
-display:flex;
-align-items:center;
-justify-content:center;
-
-cursor:pointer;
-
-box-shadow:
-0 0 10px rgba(0,0,0,0.8),
-0 0 20px rgba(0,150,255,0.6);
-
-}
-
-.hotspot.active{
-
-background:#00aaff;
-
-box-shadow:
-0 0 25px rgba(0,200,255,1);
-
-}
-
-/* COLOR BUTTON */
-
-.colorButton{
-
-width:50px;
-height:50px;
-
-border-radius:50%;
-border:none;
-
-cursor:pointer;
-
-}
-
-.green{background:green;}
-.blue{background:blue;}
-.yellow{background:yellow;}
-.lightgray{background:lightgray;}
-.darkgray{background:dimgray;}
-.red{background:red;}
-.orange{background:orange;}
-
 </style>
+
 </head>
 
 <body>
 
-<model-viewer
-id="viewer"
-src="linea lunga PROVA ANIMAZIONI.glb"
-ar
-ar-modes="webxr scene-viewer quick-look"
-camera-controls
-shadow-intensity="0"
-exposure="0.5">
+<script type="module">
 
-<!-- ANIMAZIONI -->
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+import { XRControllerModelFactory } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/XRControllerModelFactory.js";
+import { VRButton } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/VRButton.js";
 
-<button slot="hotspot-a1"
-class="hotspot"
-data-position="-0.25m 0.35m 0.25m"
-onclick="toggleAnimation(0)"
-id="anim0">1</button>
+let scene,camera,renderer;
+let controller1;
+let raycaster = new THREE.Raycaster();
 
-<button slot="hotspot-a2"
-class="hotspot"
-data-position="-0.12m 0.35m 0.25m"
-onclick="toggleAnimation(1)"
-id="anim1">2</button>
+let model;
+let mixer;
+let actions=[];
+let buttons=[];
 
-<button slot="hotspot-a3"
-class="hotspot"
-data-position="0m 0.35m 0.25m"
-onclick="toggleAnimation(2)"
-id="anim2">3</button>
+init();
+animate();
 
-<button slot="hotspot-a4"
-class="hotspot"
-data-position="0.12m 0.35m 0.25m"
-onclick="toggleAnimation(3)"
-id="anim3">4</button>
+function init(){
 
-<button slot="hotspot-a5"
-class="hotspot"
-data-position="0.25m 0.35m 0.25m"
-onclick="toggleAnimation(4)"
-id="anim4">5</button>
+scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202020);
 
-<!-- RESET -->
+camera = new THREE.PerspectiveCamera(
+70,
+window.innerWidth/window.innerHeight,
+0.01,
+20
+);
 
-<button slot="hotspot-reset"
-class="hotspot"
-data-position="0m 0.2m -0.25m"
-onclick="resetAnimations()">R</button>
+camera.position.set(0,1.6,3);
 
-<!-- COLORI STRUTTURA -->
+renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.xr.enabled = true;
 
-<button slot="hotspot-c1"
-class="colorButton green"
-data-position="-0.25m 0.1m 0.25m"
-onclick="changeColor(0,[0,0.1,0,1])"></button>
+document.body.appendChild(renderer.domElement);
+document.body.appendChild(VRButton.createButton(renderer));
 
-<button slot="hotspot-c2"
-class="colorButton blue"
-data-position="-0.15m 0.1m 0.25m"
-onclick="changeColor(0,[0,0,0.18,1])"></button>
+const light = new THREE.HemisphereLight(0xffffff,0x444444);
+light.position.set(0,20,0);
+scene.add(light);
 
-<button slot="hotspot-c3"
-class="colorButton orange"
-data-position="-0.05m 0.1m 0.25m"
-onclick="changeColor(0,[1,0.12,0,1])"></button>
+const loader = new GLTFLoader();
 
-<button slot="hotspot-c4"
-class="colorButton lightgray"
-data-position="0.05m 0.1m 0.25m"
-onclick="changeColor(0,[0.55,0.55,0.55,1])"></button>
+loader.load("linea lunga PROVA ANIMAZIONI.glb", gltf=>{
 
-<button slot="hotspot-c5"
-class="colorButton darkgray"
-data-position="0.15m 0.1m 0.25m"
-onclick="changeColor(0,[0.25,0.25,0.25,1])"></button>
+model = gltf.scene;
+scene.add(model);
 
-<button slot="hotspot-c6"
-class="colorButton red"
-data-position="0.25m 0.1m 0.25m"
-onclick="changeColor(0,[0.22,0,0,1])"></button>
+mixer = new THREE.AnimationMixer(model);
 
-</model-viewer>
+gltf.animations.forEach((clip)=>{
+actions.push(mixer.clipAction(clip));
+});
 
-<script>
+});
 
-const viewer=document.querySelector("#viewer")
+createButtons();
 
-let animations=[]
-let currentAnimation=null
+controller1 = renderer.xr.getController(0);
+controller1.addEventListener("selectstart", onSelect);
+scene.add(controller1);
 
-viewer.addEventListener("load",()=>{
+const controllerModelFactory = new XRControllerModelFactory();
 
-animations=viewer.availableAnimations
-
-})
-
-function toggleAnimation(index){
-
-if(!animations[index]) return
-
-const anim=animations[index]
-const button=document.getElementById("anim"+index)
-
-if(currentAnimation===anim){
-
-if(viewer.paused){
-
-viewer.play()
-button.classList.add("active")
-
-}else{
-
-viewer.pause()
-button.classList.remove("active")
+const controllerGrip = renderer.xr.getControllerGrip(0);
+controllerGrip.add(
+controllerModelFactory.createControllerModel(controllerGrip)
+);
+scene.add(controllerGrip);
 
 }
 
-}else{
+function createButtons(){
 
-clearButtons()
-
-currentAnimation=anim
-
-viewer.animationName=anim
-viewer.play()
-
-button.classList.add("active")
-
-}
-
-}
-
-function resetAnimations(){
-
-viewer.pause()
-viewer.currentTime=0
-
-currentAnimation=null
-
-clearButtons()
-
-}
-
-function clearButtons(){
+const geometry = new THREE.CylinderGeometry(0.08,0.08,0.02,32);
 
 for(let i=0;i<5;i++){
 
-const b=document.getElementById("anim"+i)
+const material = new THREE.MeshStandardMaterial({
+color:0x0088ff
+});
 
-if(b) b.classList.remove("active")
+const button = new THREE.Mesh(geometry,material);
+
+button.position.set(i*0.2-0.4,1.2,-0.5);
+button.rotation.x = -Math.PI/2;
+
+button.userData.index = i;
+
+scene.add(button);
+buttons.push(button);
+
+}
+
+}
+
+function onSelect(){
+
+const tempMatrix = new THREE.Matrix4();
+tempMatrix.identity().extractRotation(controller1.matrixWorld);
+
+raycaster.ray.origin.setFromMatrixPosition(controller1.matrixWorld);
+raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
+
+const intersects = raycaster.intersectObjects(buttons);
+
+if(intersects.length>0){
+
+const i = intersects[0].object.userData.index;
+
+playAnimation(i);
 
 }
 
 }
 
-function changeColor(materialIndex,rgba){
+function playAnimation(i){
 
-const material=viewer.model.materials[materialIndex]
+if(!actions[i]) return;
 
-if(material && material.pbrMetallicRoughness){
+actions.forEach(a=>a.stop());
 
-material.pbrMetallicRoughness.setBaseColorFactor(rgba)
+actions[i].reset();
+actions[i].play();
 
 }
+
+function animate(){
+
+renderer.setAnimationLoop(render);
+
+}
+
+function render(){
+
+if(mixer) mixer.update(0.016);
+
+renderer.render(scene,camera);
 
 }
 
@@ -266,8 +166,6 @@ material.pbrMetallicRoughness.setBaseColorFactor(rgba)
 
 </body>
 </html>
-
-
 
 
 
