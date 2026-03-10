@@ -2,88 +2,58 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<title>XR Viewer</title>
+<title>3D Test</title>
 
 <style>
-body{
-margin:0;
-overflow:hidden;
-}
+body{margin:0;}
+canvas{display:block;}
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
 
 </head>
 
 <body>
 
-<script type="module">
+<script>
 
-import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
-import { GLTFLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
-import { VRButton } from "https://unpkg.com/three@0.160.0/examples/jsm/webxr/VRButton.js";
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x222222);
 
-let scene,camera,renderer;
-let model;
-
-init();
-animate();
-
-function init(){
-
-scene = new THREE.Scene();
-scene.background = new THREE.Color(0x202020);
-
-camera = new THREE.PerspectiveCamera(
+const camera = new THREE.PerspectiveCamera(
 70,
 window.innerWidth/window.innerHeight,
 0.1,
 100
 );
 
-camera.position.set(0,1.6,3);
+camera.position.z = 5;
 
-renderer = new THREE.WebGLRenderer({antialias:true});
+const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth,window.innerHeight);
-renderer.xr.enabled = true;
 
 document.body.appendChild(renderer.domElement);
-document.body.appendChild(VRButton.createButton(renderer));
 
 const light = new THREE.HemisphereLight(0xffffff,0x444444);
-light.position.set(0,20,0);
 scene.add(light);
 
-const loader = new GLTFLoader();
+const loader = new THREE.GLTFLoader();
 
-loader.load("linea lunga PROVA ANIMAZIONI.glb",(gltf)=>{
+loader.load("macchina.glb",function(gltf){
 
-model = gltf.scene;
-scene.add(model);
+scene.add(gltf.scene);
 
 });
 
-window.addEventListener("resize",onResize);
-
-}
-
-function onResize(){
-
-camera.aspect = window.innerWidth/window.innerHeight;
-camera.updateProjectionMatrix();
-renderer.setSize(window.innerWidth,window.innerHeight);
-
-}
-
 function animate(){
 
-renderer.setAnimationLoop(render);
-
-}
-
-function render(){
-
+requestAnimationFrame(animate);
 renderer.render(scene,camera);
 
 }
+
+animate();
 
 </script>
 
