@@ -18,23 +18,21 @@ color:white;
 font-family:sans-serif;
 }
 
-/* MODELLO */
 model-viewer{
 width:95vw;
 height:75vh;
 }
 
-/* Pulsante AR */
+/* AR button */
+
 model-viewer::part(default-ar-button){
 width:110px;
 height:110px;
 border-radius:50%;
 background:white;
-color:black;
-font-size:2rem;
 }
 
-/* SEZIONI CONTROLLI */
+/* CONTROLLI */
 
 .controls-section{
 display:flex;
@@ -52,34 +50,65 @@ min-width:170px;
 .controls{
 display:flex;
 flex-wrap:wrap;
-gap:12px;
+gap:15px;
 }
 
-/* BOTTONI */
+/* BOTTONI IMMAGINE */
 
-button{
-padding:14px 24px;
+.animButton{
+
+width:90px;
+height:90px;
+
 border:none;
 border-radius:14px;
+overflow:hidden;
 cursor:pointer;
-font-size:1.1rem;
-color:white;
-min-width:110px;
-transition:all 0.2s;
+
+background:#333;
+
+display:flex;
+align-items:center;
+justify-content:center;
+
 }
 
-/* hover utile in VR browser */
-button:hover{
-transform:scale(1.08);
+.animButton img{
+
+width:100%;
+height:100%;
+object-fit:cover;
+
 }
 
-/* bottone attivo */
-button.active{
+/* pulsante attivo */
+
+.animButton.active{
 outline:4px solid white;
-transform:scale(1.1);
 }
 
-/* colori */
+/* reset */
+
+.reset{
+padding:14px 24px;
+border-radius:12px;
+border:none;
+background:#444;
+color:white;
+font-size:1.1rem;
+cursor:pointer;
+}
+
+/* COLORI */
+
+button.color{
+padding:12px 22px;
+border:none;
+border-radius:12px;
+cursor:pointer;
+font-size:1rem;
+color:white;
+}
 
 .green{background:green;}
 .blue{background:blue;}
@@ -88,18 +117,10 @@ transform:scale(1.1);
 .darkgray{background:dimgray;}
 .red{background:red;}
 .orange{background:orange;}
-.purple{background:purple;}
-
-.reset{
-background:#444;
-}
-
 </style>
 </head>
 
 <body>
-
-<!-- MODEL VIEWER -->
 
 <model-viewer
 id="viewer"
@@ -109,8 +130,7 @@ ar-modes="webxr scene-viewer quick-look"
 camera-controls
 auto-rotate
 shadow-intensity="0"
-exposure="0.5"
-alt="ASSIEME 3D Model">
+exposure="0.5">
 </model-viewer>
 
 <!-- ANIMAZIONI -->
@@ -121,11 +141,25 @@ alt="ASSIEME 3D Model">
 
 <div class="controls">
 
-<button id="anim0" class="blue" onclick="toggleAnimation(0)">Animazione 1</button>
-<button id="anim1" class="green" onclick="toggleAnimation(1)">Animazione 2</button>
-<button id="anim2" class="orange" onclick="toggleAnimation(2)">Animazione 3</button>
-<button id="anim3" class="purple" onclick="toggleAnimation(3)">Animazione 4</button>
-<button id="anim4" class="red" onclick="toggleAnimation(4)">Animazione 5</button>
+<button id="anim0" class="animButton" onclick="toggleAnimation(0)">
+<img src="anim1.png">
+</button>
+
+<button id="anim1" class="animButton" onclick="toggleAnimation(1)">
+<img src="anim2.png">
+</button>
+
+<button id="anim2" class="animButton" onclick="toggleAnimation(2)">
+<img src="anim3.png">
+</button>
+
+<button id="anim3" class="animButton" onclick="toggleAnimation(3)">
+<img src="anim4.png">
+</button>
+
+<button id="anim4" class="animButton" onclick="toggleAnimation(4)">
+<img src="anim5.png">
+</button>
 
 <button class="reset" onclick="resetAnimations()">RESET</button>
 
@@ -141,18 +175,18 @@ alt="ASSIEME 3D Model">
 
 <div class="controls">
 
-<button class="green" onclick="changeColor(0,[0,0.1,0,1])">Verde</button>
-<button class="blue" onclick="changeColor(0,[0,0,0.18,1])">Blu</button>
-<button class="orange" onclick="changeColor(0,[1,0.12,0,1])">Arancio</button>
-<button class="lightgray" onclick="changeColor(0,[0.55,0.55,0.55,1])">Grigio chiaro</button>
-<button class="darkgray" onclick="changeColor(0,[0.25,0.25,0.25,1])">Grigio scuro</button>
-<button class="red" onclick="changeColor(0,[0.22,0,0,1])">Rosso</button>
+<button class="color green" onclick="changeColor(0,[0,0.1,0,1])">Verde</button>
+<button class="color blue" onclick="changeColor(0,[0,0,0.18,1])">Blu</button>
+<button class="color orange" onclick="changeColor(0,[1,0.12,0,1])">Arancio</button>
+<button class="color lightgray" onclick="changeColor(0,[0.55,0.55,0.55,1])">Grigio chiaro</button>
+<button class="color darkgray" onclick="changeColor(0,[0.25,0.25,0.25,1])">Grigio scuro</button>
+<button class="color red" onclick="changeColor(0,[0.22,0,0,1])">Rosso</button>
 
 </div>
 
 </div>
 
-<!-- MOBILE PARTS COLOR -->
+<!-- MOBILE PARTS -->
 
 <div class="controls-section">
 
@@ -160,12 +194,12 @@ alt="ASSIEME 3D Model">
 
 <div class="controls">
 
-<button class="green" onclick="changeColor(2,[0,0.1,0,1])">Verde</button>
-<button class="blue" onclick="changeColor(2,[0,0,1,1])">Blu</button>
-<button class="yellow" onclick="changeColor(2,[1,1,0,1])">Giallo</button>
-<button class="lightgray" onclick="changeColor(2,[0.55,0.55,0.55,1])">Grigio chiaro</button>
-<button class="darkgray" onclick="changeColor(2,[0.33,0.33,0.33,1])">Grigio scuro</button>
-<button class="red" onclick="changeColor(2,[1,0,0,1])">Rosso</button>
+<button class="color green" onclick="changeColor(2,[0,0.1,0,1])">Verde</button>
+<button class="color blue" onclick="changeColor(2,[0,0,1,1])">Blu</button>
+<button class="color yellow" onclick="changeColor(2,[1,1,0,1])">Giallo</button>
+<button class="color lightgray" onclick="changeColor(2,[0.55,0.55,0.55,1])">Grigio chiaro</button>
+<button class="color darkgray" onclick="changeColor(2,[0.33,0.33,0.33,1])">Grigio scuro</button>
+<button class="color red" onclick="changeColor(2,[1,0,0,1])">Rosso</button>
 
 </div>
 
@@ -173,12 +207,10 @@ alt="ASSIEME 3D Model">
 
 <script>
 
-const modelViewer = document.querySelector("#viewer")
+const modelViewer=document.querySelector("#viewer")
 
 let animations=[]
 let currentAnimation=null
-
-/* CARICAMENTO MODELLO */
 
 modelViewer.addEventListener("load",()=>{
 
@@ -186,19 +218,17 @@ animations=modelViewer.availableAnimations
 
 })
 
-/* TOGGLE ANIMAZIONI */
-
 function toggleAnimation(index){
 
 if(!animations[index]) return
 
-const selectedAnimation=animations[index]
+const anim=animations[index]
 
 const button=document.getElementById("anim"+index)
 
 /* stessa animazione */
 
-if(currentAnimation===selectedAnimation){
+if(currentAnimation===anim){
 
 if(modelViewer.paused){
 
@@ -214,13 +244,11 @@ button.classList.remove("active")
 
 }else{
 
-clearActiveButtons()
+clearButtons()
 
-currentAnimation=selectedAnimation
+currentAnimation=anim
 
-modelViewer.pause()
-modelViewer.animationName=selectedAnimation
-modelViewer.currentTime=0
+modelViewer.animationName=anim
 modelViewer.play()
 
 button.classList.add("active")
@@ -229,7 +257,7 @@ button.classList.add("active")
 
 }
 
-/* RESET */
+/* reset */
 
 function resetAnimations(){
 
@@ -238,13 +266,13 @@ modelViewer.currentTime=0
 
 currentAnimation=null
 
-clearActiveButtons()
+clearButtons()
 
 }
 
-/* RIMUOVE HIGHLIGHT BOTTONI */
+/* clear pulsanti */
 
-function clearActiveButtons(){
+function clearButtons(){
 
 for(let i=0;i<5;i++){
 
@@ -256,19 +284,7 @@ if(b) b.classList.remove("active")
 
 }
 
-/* RESET AUTOMATICO QUANDO ENTRI IN AR */
-
-modelViewer.addEventListener("ar-status",event=>{
-
-if(event.detail.status==="session-started"){
-
-resetAnimations()
-
-}
-
-})
-
-/* COLORI MATERIALI */
+/* cambio colore */
 
 function changeColor(materialIndex,rgba){
 
@@ -286,7 +302,6 @@ material.pbrMetallicRoughness.setBaseColorFactor(rgba)
 
 </body>
 </html>
-
 
 
 
