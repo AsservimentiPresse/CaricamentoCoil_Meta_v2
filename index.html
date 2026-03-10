@@ -7,76 +7,102 @@
 <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 
 <style>
-body {
-margin: 0;
-background: #000;
-display: flex;
-flex-direction: column;
-align-items: center;
-color: white;
-font-family: sans-serif;
+
+body{
+margin:0;
+background:#000;
+display:flex;
+flex-direction:column;
+align-items:center;
+color:white;
+font-family:sans-serif;
 }
 
-model-viewer {
-width: 95vw;
-height: 75vh;
+/* MODELLO */
+model-viewer{
+width:95vw;
+height:75vh;
 }
 
 /* Pulsante AR */
-model-viewer::part(default-ar-button) {
-width: 100px;
-height: 100px;
-border-radius: 50%;
-background-color: white;
-color: black;
-font-size: 2rem;
+model-viewer::part(default-ar-button){
+width:110px;
+height:110px;
+border-radius:50%;
+background:white;
+color:black;
+font-size:2rem;
 }
 
-/* Sezione controlli */
-.controls-section {
-display: flex;
-align-items: center;
-margin: 10px 0;
-width: 95vw;
+/* SEZIONI CONTROLLI */
+
+.controls-section{
+display:flex;
+align-items:center;
+margin:12px 0;
+width:95vw;
 }
 
-.controls-section h3 {
-margin-right: 15px;
-font-size: 1.5rem;
-min-width: 160px;
+.controls-section h3{
+margin-right:15px;
+font-size:1.6rem;
+min-width:170px;
 }
 
-.controls {
-display: flex;
-flex-wrap: wrap;
-gap: 10px;
+.controls{
+display:flex;
+flex-wrap:wrap;
+gap:12px;
 }
 
-button {
-padding: 10px 20px;
-border: none;
-border-radius: 12px;
-cursor: pointer;
-font-size: 1rem;
-color: white;
-min-width: 80px;
+/* BOTTONI */
+
+button{
+padding:14px 24px;
+border:none;
+border-radius:14px;
+cursor:pointer;
+font-size:1.1rem;
+color:white;
+min-width:110px;
+transition:all 0.2s;
 }
 
-.green { background: green; }
-.blue { background: blue; }
-.yellow { background: yellow; color: gray;}
-.lightgray { background: lightgray; color: black; }
-.darkgray { background: dimgray; }
-.red { background: red; }
-.orange { background: orange; color: white;}
-.purple { background: purple; }
+/* hover utile in VR browser */
+button:hover{
+transform:scale(1.08);
+}
+
+/* bottone attivo */
+button.active{
+outline:4px solid white;
+transform:scale(1.1);
+}
+
+/* colori */
+
+.green{background:green;}
+.blue{background:blue;}
+.yellow{background:yellow;color:black;}
+.lightgray{background:lightgray;color:black;}
+.darkgray{background:dimgray;}
+.red{background:red;}
+.orange{background:orange;}
+.purple{background:purple;}
+
+.reset{
+background:#444;
+}
+
 </style>
 </head>
 
 <body>
 
 <!-- MODEL VIEWER -->
-<model-viewer id="viewer"
+
+<model-viewer
+id="viewer"
 src="linea lunga PROVA ANIMAZIONI.glb"
 ar
 ar-modes="webxr scene-viewer quick-look"
@@ -87,81 +113,171 @@ exposure="0.5"
 alt="ASSIEME 3D Model">
 </model-viewer>
 
-<!-- CONTROLLO ANIMAZIONI -->
+<!-- ANIMAZIONI -->
+
 <div class="controls-section">
+
 <h3>Animations</h3>
+
 <div class="controls">
 
-<button class="blue" onclick="playAnimation(0)">Animazione 1</button>
-<button class="green" onclick="playAnimation(1)">Animazione 2</button>
-<button class="orange" onclick="playAnimation(2)">Animazione 3</button>
-<button class="purple" onclick="playAnimation(3)">Animazione 4</button>
-<button class="red" onclick="playAnimation(4)">Animazione 5</button>
+<button id="anim0" class="blue" onclick="toggleAnimation(0)">Animazione 1</button>
+<button id="anim1" class="green" onclick="toggleAnimation(1)">Animazione 2</button>
+<button id="anim2" class="orange" onclick="toggleAnimation(2)">Animazione 3</button>
+<button id="anim3" class="purple" onclick="toggleAnimation(3)">Animazione 4</button>
+<button id="anim4" class="red" onclick="toggleAnimation(4)">Animazione 5</button>
+
+<button class="reset" onclick="resetAnimations()">RESET</button>
 
 </div>
+
 </div>
 
 <!-- STRUCTURE COLOR -->
+
 <div class="controls-section">
+
 <h3>Structure Color</h3>
+
 <div class="controls">
-<button class="green" onclick="changeColor(0, [0, 0.1, 0, 1])">Verde</button>
-<button class="blue" onclick="changeColor(0, [0, 0, 0.18, 1])">Blu</button>
-<button class="orange" onclick="changeColor(0, [1, 0.12, 0, 1])">Arancio</button>
-<button class="lightgray" onclick="changeColor(0, [0.55, 0.55, 0.55, 1])">Grigio chiaro</button>
-<button class="darkgray" onclick="changeColor(0, [0.25, 0.25, 0.25, 1])">Grigio scuro</button>
-<button class="red" onclick="changeColor(0, [0.22, 0, 0, 1])">Rosso</button>
+
+<button class="green" onclick="changeColor(0,[0,0.1,0,1])">Verde</button>
+<button class="blue" onclick="changeColor(0,[0,0,0.18,1])">Blu</button>
+<button class="orange" onclick="changeColor(0,[1,0.12,0,1])">Arancio</button>
+<button class="lightgray" onclick="changeColor(0,[0.55,0.55,0.55,1])">Grigio chiaro</button>
+<button class="darkgray" onclick="changeColor(0,[0.25,0.25,0.25,1])">Grigio scuro</button>
+<button class="red" onclick="changeColor(0,[0.22,0,0,1])">Rosso</button>
+
 </div>
+
 </div>
 
 <!-- MOBILE PARTS COLOR -->
+
 <div class="controls-section">
+
 <h3>Mobile Parts Color</h3>
+
 <div class="controls">
-<button class="green" onclick="changeColor(2, [0, 0.1, 0, 1])">Verde</button>
-<button class="blue" onclick="changeColor(2, [0, 0, 1, 1])">Blu</button>
-<button class="yellow" onclick="changeColor(2, [1, 1, 0, 1])">Giallo</button>
-<button class="lightgray" onclick="changeColor(2, [0.55, 0.55, 0.55, 1])">Grigio chiaro</button>
-<button class="darkgray" onclick="changeColor(2, [0.33, 0.33, 0.33, 1])">Grigio scuro</button>
-<button class="red" onclick="changeColor(2, [1, 0, 0, 1])">Rosso</button>
+
+<button class="green" onclick="changeColor(2,[0,0.1,0,1])">Verde</button>
+<button class="blue" onclick="changeColor(2,[0,0,1,1])">Blu</button>
+<button class="yellow" onclick="changeColor(2,[1,1,0,1])">Giallo</button>
+<button class="lightgray" onclick="changeColor(2,[0.55,0.55,0.55,1])">Grigio chiaro</button>
+<button class="darkgray" onclick="changeColor(2,[0.33,0.33,0.33,1])">Grigio scuro</button>
+<button class="red" onclick="changeColor(2,[1,0,0,1])">Rosso</button>
+
 </div>
+
 </div>
 
 <script>
 
-const modelViewer = document.querySelector('#viewer');
-let animations = [];
+const modelViewer = document.querySelector("#viewer")
 
-/* Carica animazioni dal modello */
-modelViewer.addEventListener('load', () => {
+let animations=[]
+let currentAnimation=null
 
-animations = modelViewer.availableAnimations;
+/* CARICAMENTO MODELLO */
 
-if (animations.length > 0) {
-modelViewer.animationName = animations[0];
+modelViewer.addEventListener("load",()=>{
+
+animations=modelViewer.availableAnimations
+
+})
+
+/* TOGGLE ANIMAZIONI */
+
+function toggleAnimation(index){
+
+if(!animations[index]) return
+
+const selectedAnimation=animations[index]
+
+const button=document.getElementById("anim"+index)
+
+/* stessa animazione */
+
+if(currentAnimation===selectedAnimation){
+
+if(modelViewer.paused){
+
+modelViewer.play()
+button.classList.add("active")
+
+}else{
+
+modelViewer.pause()
+button.classList.remove("active")
+
 }
 
-});
+}else{
 
-/* Riproduce animazione specifica */
-function playAnimation(index) {
+clearActiveButtons()
 
-if (!animations[index]) return;
+currentAnimation=selectedAnimation
 
-modelViewer.pause();
-modelViewer.animationName = animations[index];
-modelViewer.currentTime = 0;
-modelViewer.play();
+modelViewer.pause()
+modelViewer.animationName=selectedAnimation
+modelViewer.currentTime=0
+modelViewer.play()
+
+button.classList.add("active")
 
 }
 
-/* Cambio colore materiali */
-function changeColor(materialIndex, rgba) {
+}
 
-const material = modelViewer.model.materials[materialIndex];
+/* RESET */
 
-if (material && material.pbrMetallicRoughness) {
-material.pbrMetallicRoughness.setBaseColorFactor(rgba);
+function resetAnimations(){
+
+modelViewer.pause()
+modelViewer.currentTime=0
+
+currentAnimation=null
+
+clearActiveButtons()
+
+}
+
+/* RIMUOVE HIGHLIGHT BOTTONI */
+
+function clearActiveButtons(){
+
+for(let i=0;i<5;i++){
+
+const b=document.getElementById("anim"+i)
+
+if(b) b.classList.remove("active")
+
+}
+
+}
+
+/* RESET AUTOMATICO QUANDO ENTRI IN AR */
+
+modelViewer.addEventListener("ar-status",event=>{
+
+if(event.detail.status==="session-started"){
+
+resetAnimations()
+
+}
+
+})
+
+/* COLORI MATERIALI */
+
+function changeColor(materialIndex,rgba){
+
+const material=modelViewer.model.materials[materialIndex]
+
+if(material && material.pbrMetallicRoughness){
+
+material.pbrMetallicRoughness.setBaseColorFactor(rgba)
+
 }
 
 }
@@ -170,7 +286,6 @@ material.pbrMetallicRoughness.setBaseColorFactor(rgba);
 
 </body>
 </html>
-
 
 
 
