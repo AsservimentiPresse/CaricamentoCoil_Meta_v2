@@ -2,28 +2,28 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>ASSIEME - AR Viewer</title>
+<title>ASSIEME XR Viewer</title>
 
-<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<script type="module"
+src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 
 <style>
 
 body{
 margin:0;
 background:#000;
-display:flex;
-flex-direction:column;
-align-items:center;
-color:white;
 font-family:sans-serif;
 }
 
+/* MODEL VIEWER FULLSCREEN */
+
 model-viewer{
-width:95vw;
-height:75vh;
+width:100vw;
+height:100vh;
+background:#000;
 }
 
-/* AR button */
+/* AR BUTTON */
 
 model-viewer::part(default-ar-button){
 width:110px;
@@ -32,91 +32,65 @@ border-radius:50%;
 background:white;
 }
 
-/* CONTROLLI */
+/* HOTSPOT BUTTON */
 
-.controls-section{
-display:flex;
-align-items:center;
-margin:12px 0;
-width:95vw;
-}
+.hotspot{
 
-.controls-section h3{
-margin-right:15px;
-font-size:1.6rem;
-min-width:170px;
-}
+width:70px;
+height:70px;
 
-.controls{
-display:flex;
-flex-wrap:wrap;
-gap:15px;
-}
-
-/* BOTTONI IMMAGINE */
-
-.animButton{
-
-width:90px;
-height:90px;
-
+border-radius:50%;
 border:none;
-border-radius:14px;
-overflow:hidden;
-cursor:pointer;
 
-background:#333;
+background:#1e1e1e;
+color:white;
+
+font-size:20px;
+font-weight:bold;
 
 display:flex;
 align-items:center;
 justify-content:center;
 
-}
-
-.animButton img{
-
-width:100%;
-height:100%;
-object-fit:cover;
-
-}
-
-/* pulsante attivo */
-
-.animButton.active{
-outline:4px solid white;
-}
-
-/* reset */
-
-.reset{
-padding:14px 24px;
-border-radius:12px;
-border:none;
-background:#444;
-color:white;
-font-size:1.1rem;
 cursor:pointer;
+
+box-shadow:
+0 0 10px rgba(0,0,0,0.8),
+0 0 20px rgba(0,150,255,0.6);
+
 }
 
-/* COLORI */
+.hotspot.active{
 
-button.color{
-padding:12px 22px;
+background:#00aaff;
+
+box-shadow:
+0 0 25px rgba(0,200,255,1);
+
+}
+
+/* COLOR BUTTON */
+
+.colorButton{
+
+width:50px;
+height:50px;
+
+border-radius:50%;
 border:none;
-border-radius:12px;
+
 cursor:pointer;
-font-size:1rem;
-color:white;
+
 }
 
 .green{background:green;}
 .blue{background:blue;}
-.yellow{background:yellow;color:black;}
-.lightgray{background:lightgray;color:black;}
+.yellow{background:yellow;}
+.lightgray{background:lightgray;}
 .darkgray{background:dimgray;}
 .red{background:red;}
 .orange{background:orange;}
+
 </style>
 </head>
 
@@ -128,93 +102,92 @@ src="linea lunga PROVA ANIMAZIONI.glb"
 ar
 ar-modes="webxr scene-viewer quick-look"
 camera-controls
-//auto-rotate
 shadow-intensity="0"
 exposure="0.5">
-</model-viewer>
 
 <!-- ANIMAZIONI -->
 
-<div class="controls-section">
+<button slot="hotspot-a1"
+class="hotspot"
+data-position="-0.25m 0.35m 0.25m"
+onclick="toggleAnimation(0)"
+id="anim0">1</button>
 
-<h3>Animations</h3>
+<button slot="hotspot-a2"
+class="hotspot"
+data-position="-0.12m 0.35m 0.25m"
+onclick="toggleAnimation(1)"
+id="anim1">2</button>
 
-<div class="controls">
+<button slot="hotspot-a3"
+class="hotspot"
+data-position="0m 0.35m 0.25m"
+onclick="toggleAnimation(2)"
+id="anim2">3</button>
 
-<button id="anim0" class="animButton" onclick="toggleAnimation(0)">
-<img src="anim1.png">
-</button>
+<button slot="hotspot-a4"
+class="hotspot"
+data-position="0.12m 0.35m 0.25m"
+onclick="toggleAnimation(3)"
+id="anim3">4</button>
 
-<button id="anim1" class="animButton" onclick="toggleAnimation(1)">
-<img src="anim2.png">
-</button>
+<button slot="hotspot-a5"
+class="hotspot"
+data-position="0.25m 0.35m 0.25m"
+onclick="toggleAnimation(4)"
+id="anim4">5</button>
 
-<button id="anim2" class="animButton" onclick="toggleAnimation(2)">
-<img src="anim3.png">
-</button>
+<!-- RESET -->
 
-<button id="anim3" class="animButton" onclick="toggleAnimation(3)">
-<img src="anim4.png">
-</button>
+<button slot="hotspot-reset"
+class="hotspot"
+data-position="0m 0.2m -0.25m"
+onclick="resetAnimations()">R</button>
 
-<button id="anim4" class="animButton" onclick="toggleAnimation(4)">
-<img src="anim5.png">
-</button>
+<!-- COLORI STRUTTURA -->
 
-<button class="reset" onclick="resetAnimations()">RESET</button>
+<button slot="hotspot-c1"
+class="colorButton green"
+data-position="-0.25m 0.1m 0.25m"
+onclick="changeColor(0,[0,0.1,0,1])"></button>
 
-</div>
+<button slot="hotspot-c2"
+class="colorButton blue"
+data-position="-0.15m 0.1m 0.25m"
+onclick="changeColor(0,[0,0,0.18,1])"></button>
 
-</div>
+<button slot="hotspot-c3"
+class="colorButton orange"
+data-position="-0.05m 0.1m 0.25m"
+onclick="changeColor(0,[1,0.12,0,1])"></button>
 
-<!-- STRUCTURE COLOR -->
+<button slot="hotspot-c4"
+class="colorButton lightgray"
+data-position="0.05m 0.1m 0.25m"
+onclick="changeColor(0,[0.55,0.55,0.55,1])"></button>
 
-<div class="controls-section">
+<button slot="hotspot-c5"
+class="colorButton darkgray"
+data-position="0.15m 0.1m 0.25m"
+onclick="changeColor(0,[0.25,0.25,0.25,1])"></button>
 
-<h3>Structure Color</h3>
+<button slot="hotspot-c6"
+class="colorButton red"
+data-position="0.25m 0.1m 0.25m"
+onclick="changeColor(0,[0.22,0,0,1])"></button>
 
-<div class="controls">
-
-<button class="color green" onclick="changeColor(0,[0,0.1,0,1])">Verde</button>
-<button class="color blue" onclick="changeColor(0,[0,0,0.18,1])">Blu</button>
-<button class="color orange" onclick="changeColor(0,[1,0.12,0,1])">Arancio</button>
-<button class="color lightgray" onclick="changeColor(0,[0.55,0.55,0.55,1])">Grigio chiaro</button>
-<button class="color darkgray" onclick="changeColor(0,[0.25,0.25,0.25,1])">Grigio scuro</button>
-<button class="color red" onclick="changeColor(0,[0.22,0,0,1])">Rosso</button>
-
-</div>
-
-</div>
-
-<!-- MOBILE PARTS -->
-
-<div class="controls-section">
-
-<h3>Mobile Parts Color</h3>
-
-<div class="controls">
-
-<button class="color green" onclick="changeColor(2,[0,0.1,0,1])">Verde</button>
-<button class="color blue" onclick="changeColor(2,[0,0,1,1])">Blu</button>
-<button class="color yellow" onclick="changeColor(2,[1,1,0,1])">Giallo</button>
-<button class="color lightgray" onclick="changeColor(2,[0.55,0.55,0.55,1])">Grigio chiaro</button>
-<button class="color darkgray" onclick="changeColor(2,[0.33,0.33,0.33,1])">Grigio scuro</button>
-<button class="color red" onclick="changeColor(2,[1,0,0,1])">Rosso</button>
-
-</div>
-
-</div>
+</model-viewer>
 
 <script>
 
-const modelViewer=document.querySelector("#viewer")
+const viewer=document.querySelector("#viewer")
 
 let animations=[]
 let currentAnimation=null
 
-modelViewer.addEventListener("load",()=>{
+viewer.addEventListener("load",()=>{
 
-animations=modelViewer.availableAnimations
+animations=viewer.availableAnimations
 
 })
 
@@ -223,21 +196,18 @@ function toggleAnimation(index){
 if(!animations[index]) return
 
 const anim=animations[index]
-
 const button=document.getElementById("anim"+index)
-
-/* stessa animazione */
 
 if(currentAnimation===anim){
 
-if(modelViewer.paused){
+if(viewer.paused){
 
-modelViewer.play()
+viewer.play()
 button.classList.add("active")
 
 }else{
 
-modelViewer.pause()
+viewer.pause()
 button.classList.remove("active")
 
 }
@@ -248,8 +218,8 @@ clearButtons()
 
 currentAnimation=anim
 
-modelViewer.animationName=anim
-modelViewer.play()
+viewer.animationName=anim
+viewer.play()
 
 button.classList.add("active")
 
@@ -257,20 +227,16 @@ button.classList.add("active")
 
 }
 
-/* reset */
-
 function resetAnimations(){
 
-modelViewer.pause()
-modelViewer.currentTime=0
+viewer.pause()
+viewer.currentTime=0
 
 currentAnimation=null
 
 clearButtons()
 
 }
-
-/* clear pulsanti */
 
 function clearButtons(){
 
@@ -284,11 +250,9 @@ if(b) b.classList.remove("active")
 
 }
 
-/* cambio colore */
-
 function changeColor(materialIndex,rgba){
 
-const material=modelViewer.model.materials[materialIndex]
+const material=viewer.model.materials[materialIndex]
 
 if(material && material.pbrMetallicRoughness){
 
@@ -302,6 +266,7 @@ material.pbrMetallicRoughness.setBaseColorFactor(rgba)
 
 </body>
 </html>
+
 
 
 
