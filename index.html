@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
 <meta charset="utf-8">
 <title>XR Viewer</title>
- <link rel="icon" href="data:,">
+
 <style>
 body{
 margin:0;
@@ -11,20 +11,18 @@ overflow:hidden;
 }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/webxr/VRButton.js"></script>
-
 </head>
 
 <body>
 
-<script>
+<script type="module">
+
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+import { GLTFLoader } from "https://unpkg.com/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
+import { VRButton } from "https://unpkg.com/three@0.160.0/examples/jsm/webxr/VRButton.js";
 
 let scene,camera,renderer;
 let model;
-let mixer;
-let actions=[];
 
 init();
 animate();
@@ -32,12 +30,13 @@ animate();
 function init(){
 
 scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202020);
 
 camera = new THREE.PerspectiveCamera(
 70,
 window.innerWidth/window.innerHeight,
-0.01,
-20
+0.1,
+100
 );
 
 camera.position.set(0,1.6,3);
@@ -53,20 +52,24 @@ const light = new THREE.HemisphereLight(0xffffff,0x444444);
 light.position.set(0,20,0);
 scene.add(light);
 
-const loader = new THREE.GLTFLoader();
+const loader = new GLTFLoader();
 
-loader.load("linea lunga PROVA ANIMAZIONI.glb", function(gltf){
+loader.load("linea lunga PROVA ANIMAZIONI.glb",(gltf)=>{
 
 model = gltf.scene;
 scene.add(model);
 
-mixer = new THREE.AnimationMixer(model);
-
-gltf.animations.forEach(function(clip){
-actions.push(mixer.clipAction(clip));
 });
 
-});
+window.addEventListener("resize",onResize);
+
+}
+
+function onResize(){
+
+camera.aspect = window.innerWidth/window.innerHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(window.innerWidth,window.innerHeight);
 
 }
 
@@ -78,8 +81,6 @@ renderer.setAnimationLoop(render);
 
 function render(){
 
-if(mixer) mixer.update(0.016);
-
 renderer.render(scene,camera);
 
 }
@@ -88,9 +89,6 @@ renderer.render(scene,camera);
 
 </body>
 </html>
-
-
-
 
 
 
