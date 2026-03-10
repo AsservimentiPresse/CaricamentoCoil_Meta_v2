@@ -1,38 +1,30 @@
 <!DOCTYPE html>
-<html lang="it">
+<html>
 <head>
 <meta charset="utf-8">
-<title>XR Machine Controller</title>
+<title>XR Viewer</title>
 
 <style>
 body{
 margin:0;
 overflow:hidden;
 }
-canvas{
-display:block;
-}
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/webxr/VRButton.js"></script>
 
 </head>
 
 <body>
 
-<script type="module">
-
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
-import { XRControllerModelFactory } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/XRControllerModelFactory.js";
-import { VRButton } from "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/webxr/VRButton.js";
+<script>
 
 let scene,camera,renderer;
-let controller1;
-let raycaster = new THREE.Raycaster();
-
 let model;
 let mixer;
 let actions=[];
-let buttons=[];
 
 init();
 animate();
@@ -40,7 +32,6 @@ animate();
 function init(){
 
 scene = new THREE.Scene();
-scene.background = new THREE.Color(0x202020);
 
 camera = new THREE.PerspectiveCamera(
 70,
@@ -62,89 +53,20 @@ const light = new THREE.HemisphereLight(0xffffff,0x444444);
 light.position.set(0,20,0);
 scene.add(light);
 
-const loader = new GLTFLoader();
+const loader = new THREE.GLTFLoader();
 
-loader.load("linea lunga PROVA ANIMAZIONI.glb", gltf=>{
+loader.load("linea lunga PROVA ANIMAZIONI.glb", function(gltf){
 
 model = gltf.scene;
 scene.add(model);
 
 mixer = new THREE.AnimationMixer(model);
 
-gltf.animations.forEach((clip)=>{
+gltf.animations.forEach(function(clip){
 actions.push(mixer.clipAction(clip));
 });
 
 });
-
-createButtons();
-
-controller1 = renderer.xr.getController(0);
-controller1.addEventListener("selectstart", onSelect);
-scene.add(controller1);
-
-const controllerModelFactory = new XRControllerModelFactory();
-
-const controllerGrip = renderer.xr.getControllerGrip(0);
-controllerGrip.add(
-controllerModelFactory.createControllerModel(controllerGrip)
-);
-scene.add(controllerGrip);
-
-}
-
-function createButtons(){
-
-const geometry = new THREE.CylinderGeometry(0.08,0.08,0.02,32);
-
-for(let i=0;i<5;i++){
-
-const material = new THREE.MeshStandardMaterial({
-color:0x0088ff
-});
-
-const button = new THREE.Mesh(geometry,material);
-
-button.position.set(i*0.2-0.4,1.2,-0.5);
-button.rotation.x = -Math.PI/2;
-
-button.userData.index = i;
-
-scene.add(button);
-buttons.push(button);
-
-}
-
-}
-
-function onSelect(){
-
-const tempMatrix = new THREE.Matrix4();
-tempMatrix.identity().extractRotation(controller1.matrixWorld);
-
-raycaster.ray.origin.setFromMatrixPosition(controller1.matrixWorld);
-raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
-
-const intersects = raycaster.intersectObjects(buttons);
-
-if(intersects.length>0){
-
-const i = intersects[0].object.userData.index;
-
-playAnimation(i);
-
-}
-
-}
-
-function playAnimation(i){
-
-if(!actions[i]) return;
-
-actions.forEach(a=>a.stop());
-
-actions[i].reset();
-actions[i].play();
 
 }
 
@@ -166,8 +88,6 @@ renderer.render(scene,camera);
 
 </body>
 </html>
-
-
 
 
 
