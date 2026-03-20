@@ -1,12 +1,32 @@
 <!DOCTYPE html>
 <html>
-<body style="background:black; color:white;">
-
-<h1>TEST</h1>
+<head>
+<style>body{margin:0}</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r125/three.min.js"></script>
+</head>
+<body>
 
 <script>
-console.log("JS OK");
-document.body.style.background = "green";
+
+console.log("THREE START");
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x00ff00);
+
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.z = 5;
+
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+function animate(){
+requestAnimationFrame(animate);
+renderer.render(scene, camera);
+}
+
+animate();
+
 </script>
 
 </body>
