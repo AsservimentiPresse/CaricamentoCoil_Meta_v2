@@ -1,67 +1,12 @@
 <!DOCTYPE html>
 <html>
-<head>
-<meta charset="utf-8">
-<title>Viewer</title>
+<body style="background:black; color:white;">
 
-<style>
-body { margin:0; background:black; }
-canvas { display:block; }
-</style>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r125/three.min.js"></script>
-<script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
-
-</head>
-
-<body>
+<h1>TEST</h1>
 
 <script>
-
-console.log("START");
-
-let scene = new THREE.Scene();
-
-let camera = new THREE.PerspectiveCamera(
-70,
-window.innerWidth/window.innerHeight,
-0.1,
-100
-);
-
-camera.position.set(0,1,5);
-
-let renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-let light = new THREE.HemisphereLight(0xffffff,0x444444);
-scene.add(light);
-
-let loader = new THREE.GLTFLoader();
-
-loader.load("modello.glb",
-
-function(gltf){
-console.log("MODEL OK");
-scene.add(gltf.scene);
-},
-
-undefined,
-
-function(error){
-console.error("ERRORE:", error);
-}
-
-);
-
-function animate(){
-requestAnimationFrame(animate);
-renderer.render(scene,camera);
-}
-
-animate();
-
+console.log("JS OK");
+document.body.style.background = "green";
 </script>
 
 </body>
