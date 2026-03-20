@@ -10,7 +10,7 @@ canvas { display:block; }
 </style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r125/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r125/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
 
 </head>
 
@@ -18,7 +18,7 @@ canvas { display:block; }
 
 <script>
 
-console.log("START SCRIPT"); // debug
+console.log("START");
 
 let scene = new THREE.Scene();
 
@@ -33,7 +33,6 @@ camera.position.set(0,1,5);
 
 let renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth,window.innerHeight);
-
 document.body.appendChild(renderer.domElement);
 
 let light = new THREE.HemisphereLight(0xffffff,0x444444);
@@ -42,25 +41,23 @@ scene.add(light);
 let loader = new THREE.GLTFLoader();
 
 loader.load("modello.glb",
+
 function(gltf){
-
-console.log("MODEL LOADED");
-
+console.log("MODEL OK");
 scene.add(gltf.scene);
-
 },
+
 undefined,
+
 function(error){
-console.error("ERRORE MODELLO:", error);
+console.error("ERRORE:", error);
 }
+
 );
 
 function animate(){
-
 requestAnimationFrame(animate);
-
 renderer.render(scene,camera);
-
 }
 
 animate();
@@ -69,5 +66,3 @@ animate();
 
 </body>
 </html>
-
-
