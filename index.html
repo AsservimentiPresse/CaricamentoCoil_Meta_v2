@@ -4,20 +4,19 @@
 <style>body{margin:0}</style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r125/three.min.js"></script>
-<script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.125.2/examples/js/loaders/GLTFLoader.js"></script>
 
 </head>
 <body>
 
 <script>
 
-console.log("START MODEL TEST");
+console.log("START");
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x000000);
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
-camera.position.set(0, 1, 5);
+camera.position.set(0,1,5);
 
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -26,19 +25,12 @@ document.body.appendChild(renderer.domElement);
 const light = new THREE.HemisphereLight(0xffffff,0x444444);
 scene.add(light);
 
-// cubo di test (IMPORTANTISSIMO)
-const geo = new THREE.BoxGeometry();
-const mat = new THREE.MeshBasicMaterial({color:0xff0000});
-const cube = new THREE.Mesh(geo,mat);
-cube.position.x = -2;
-scene.add(cube);
-
 const loader = new THREE.GLTFLoader();
 
 loader.load("modello.glb",
 
 function(gltf){
-console.log("MODEL LOADED");
+console.log("MODEL OK");
 scene.add(gltf.scene);
 },
 
@@ -52,7 +44,6 @@ console.error("MODEL ERROR:", error);
 
 function animate(){
 requestAnimationFrame(animate);
-cube.rotation.y += 0.01;
 renderer.render(scene, camera);
 }
 
