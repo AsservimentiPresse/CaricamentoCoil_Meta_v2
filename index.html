@@ -2,21 +2,23 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>3D Viewer</title>
+<title>Viewer</title>
 
 <style>
-body { margin:0; }
+body { margin:0; background:black; }
 canvas { display:block; }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.125.2/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.125.2/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r125/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/mrdoob/three.js@r125/examples/js/loaders/GLTFLoader.js"></script>
 
 </head>
 
 <body>
 
 <script>
+
+console.log("START SCRIPT"); // debug
 
 let scene = new THREE.Scene();
 
@@ -27,10 +29,11 @@ window.innerWidth/window.innerHeight,
 100
 );
 
-camera.position.z = 5;
+camera.position.set(0,1,5);
 
 let renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth,window.innerHeight);
+
 document.body.appendChild(renderer.domElement);
 
 let light = new THREE.HemisphereLight(0xffffff,0x444444);
@@ -38,15 +41,24 @@ scene.add(light);
 
 let loader = new THREE.GLTFLoader();
 
-loader.load("macchina.glb",function(gltf){
+loader.load("modello.glb",
+function(gltf){
+
+console.log("MODEL LOADED");
 
 scene.add(gltf.scene);
 
-});
+},
+undefined,
+function(error){
+console.error("ERRORE MODELLO:", error);
+}
+);
 
 function animate(){
 
 requestAnimationFrame(animate);
+
 renderer.render(scene,camera);
 
 }
