@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR MOVE ROTATE</title>
+<title>MR Industrial Full Control</title>
 
 <style>
 body { margin:0; overflow:hidden; }
@@ -20,12 +20,20 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/js
 const scene = new THREE.Scene();
 scene.background = null;
 
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 40);
+const camera = new THREE.PerspectiveCamera(
+    70,
+    window.innerWidth / window.innerHeight,
+    0.01,
+    40
+);
 
-const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true
+});
+
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
-
 renderer.xr.setReferenceSpaceType("local");
 
 document.body.appendChild(renderer.domElement);
@@ -33,13 +41,18 @@ document.body.appendChild(ARButton.createButton(renderer, {
     requiredFeatures: ["hit-test"]
 }));
 
-// LUCE
+// =====================
+// LUCI
+// =====================
 scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
-const light = new THREE.DirectionalLight(0xffffff, 2);
-light.position.set(5,10,5);
-scene.add(light);
 
+const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+dirLight.position.set(5, 10, 5);
+scene.add(dirLight);
+
+// =====================
 // MODELLO
+// =====================
 let model;
 
 const loader = new GLTFLoader();
@@ -57,22 +70,23 @@ loader.load("linea%20lunga_V4.glb", (gltf) => {
     model.scale.setScalar(1.5 / size);
 
     model.position.set(0, 0, -1);
-
 });
 
-// 🎮 CONTROLLERS
+// =====================
+// CONTROLLERS
+// =====================
 const controller0 = renderer.xr.getController(0); // destra
 const controller1 = renderer.xr.getController(1); // sinistra
 
 scene.add(controller0);
 scene.add(controller1);
 
-// 🔴 LASER
+// laser visivi
 function addRay(controller, color) {
 
     const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0,0,0),
-        new THREE.Vector3(0,0,-1)
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 0, -1)
     ]);
 
     const line = new THREE.Line(
@@ -86,26 +100,51 @@ function addRay(controller, color) {
 addRay(controller0, 0xff0000);
 addRay(controller1, 0x00ff00);
 
-// 🎯 RAYCAST
+// =====================
+// RAY / INPUT STATE
+// =====================
 const raycaster = new THREE.Raycaster();
 const tempMatrix = new THREE.Matrix4();
 
-// MOVE (destra)
-let dragging = false;
-
-// ROTATE (sinistra)
+// MOVE / ROTATE STATE
+let draggingMove = false;
 let rotating = false;
 
-controller0.addEventListener("selectstart", () => dragging = true);
-controller0.addEventListener("selectend", () => dragging = false);
+// PINCH STATE
+let baseDistance = null;
+let baseScale = 1;
 
+// =====================
+// EVENTI
+// =====================
+
+// mano destra = move
+controller0.addEventListener("selectstart", () => draggingMove = true);
+controller0.addEventListener("selectend", () => draggingMove = false);
+
+// mano sinistra = rotate
 controller1.addEventListener("selectstart", () => rotating = true);
 controller1.addEventListener("selectend", () => rotating = false);
 
-// POSIZIONE TEMP
-const target = new THREE.Vector3();
-const lastPos = new THREE.Vector3();
+// reset pinch
+controller0.addEventListener("selectend", () => baseDistance = null);
+controller1.addEventListener("selectend", () => baseDistance = null);
 
+// =====================
+// FUNZIONI
+// =====================
+function getDistance(c1, c2) {
+
+    const p1 = new THREE.Vector3();
+    const p2 = new THREE.Vector3();
+
+    p1.setFromMatrixPosition(c1.matrixWorld);
+    p2.setFromMatrixPosition(c2.matrixWorld);
+
+    return p1.distanceTo(p2);
+}
+
+// MOVE
 function updateMove(controller) {
 
     if (!model) return;
@@ -113,12 +152,16 @@ function updateMove(controller) {
     tempMatrix.identity().extractRotation(controller.matrixWorld);
 
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
+    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
+    const target = new THREE.Vector3();
     raycaster.ray.at(1.5, target);
 
     model.position.lerp(target, 0.25);
 }
+
+// ROTATE
+const lastPos = new THREE.Vector3();
 
 function updateRotate(controller) {
 
@@ -134,14 +177,35 @@ function updateRotate(controller) {
     lastPos.copy(current);
 }
 
-// LOOP
+// PINCH SCALE
+function updatePinch() {
+
+    if (!model || !controller0 || !controller1) return;
+
+    const d = getDistance(controller0, controller1);
+
+    if (baseDistance === null) {
+        baseDistance = d;
+        baseScale = model.scale.x;
+    }
+
+    const scaleFactor = d / baseDistance;
+
+    model.scale.setScalar(baseScale * scaleFactor);
+}
+
+// =====================
+// LOOP MR
+// =====================
 renderer.setAnimationLoop(() => {
 
-    if (dragging) updateMove(controller0);
+    if (draggingMove) updateMove(controller0);
     if (rotating) updateRotate(controller1);
 
-    renderer.render(scene, camera);
+    // zoom con due mani
+    updatePinch();
 
+    renderer.render(scene, camera);
 });
 
 </script>
