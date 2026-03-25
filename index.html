@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR Industrial Full System</title>
+<title>MR Fixed Industrial UI</title>
 
 <style>
 body { margin:0; overflow:hidden; }
@@ -60,69 +60,64 @@ loader.load("linea%20lunga_V4.glb", (gltf) => {
     model.scale.setScalar(1.2 / size);
 
     model.position.set(0, 0, -1);
-
 });
 
 // =====================
-// HIT TEST (floor anchor)
+// RETICLE (floor anchor)
 // =====================
-let hitTestSource = null;
-let hitTestSourceRequested = false;
-let reticle;
-
-reticle = new THREE.Mesh(
-    new THREE.RingGeometry(0.1, 0.12, 32),
+let reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.08, 0.1, 32),
     new THREE.MeshBasicMaterial({ color: 0x00ff00 })
 );
+
 reticle.rotation.x = -Math.PI / 2;
 reticle.visible = false;
 scene.add(reticle);
 
 // =====================
-// CONTROLLERS
+// CONTROLLER
 // =====================
 const controller = renderer.xr.getController(0);
 scene.add(controller);
 
-// ray visual
-const rayGeo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0,0,0),
-    new THREE.Vector3(0,0,-1)
-]);
-
-const rayLine = new THREE.Line(rayGeo, new THREE.LineBasicMaterial({ color: 0xff0000 }));
-controller.add(rayLine);
-
 // =====================
-// INTERACTION
+// RAYCASTER
 // =====================
 const raycaster = new THREE.Raycaster();
 const tempMatrix = new THREE.Matrix4();
 
-let selected = null;
-
 // =====================
-// UI 3D (ORBITAL)
+// UI GROUP
 // =====================
 const uiGroup = new THREE.Group();
 scene.add(uiGroup);
 
-function createButton(label, x, color, callback) {
+// UI BUTTONS
+const uiButtons = [];
 
-    const geo = new THREE.BoxGeometry(0.1,0.05,0.02);
-    const mat = new THREE.MeshStandardMaterial({ color });
+function createButton(label, x, color, onClick) {
 
-    const btn = new THREE.Mesh(geo, mat);
-    btn.position.set(x, 1.2, -0.8);
+    const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.06, 0.02),
+        new THREE.MeshStandardMaterial({ color })
+    );
 
-    btn.userData.onClick = callback;
+    mesh.position.set(x, 1.2, -0.8);
+    mesh.userData.clickable = true;
+    mesh.userData.onClick = onClick;
 
-    uiGroup.add(btn);
-    return btn;
+    uiGroup.add(mesh);
+    uiButtons.push(mesh);
+
+    return mesh;
 }
 
-// UI buttons
-createButton("RED", -0.2, 0xff0000, () => {
+// =====================
+// UI ACTIONS
+// =====================
+let selected = null;
+
+createButton("RED", -0.25, 0xff0000, () => {
     if (selected) selected.material.color.set(0xff0000);
 });
 
@@ -130,22 +125,14 @@ createButton("GREEN", 0, 0x00ff00, () => {
     if (selected) selected.material.color.set(0x00ff00);
 });
 
-createButton("BLUE", 0.2, 0x0000ff, () => {
+createButton("BLUE", 0.25, 0x0000ff, () => {
     if (selected) selected.material.color.set(0x0000ff);
 });
 
 // =====================
-// HAND / CONTROLLER INPUT (fallback)
+// PICK MODEL PART
 // =====================
-let dragging = false;
-
-controller.addEventListener("selectstart", () => dragging = true);
-controller.addEventListener("selectend", () => dragging = false);
-
-// =====================
-// RAYCAST PICKING (mesh selection)
-// =====================
-function pick() {
+function pickModel() {
 
     if (!model) return;
 
@@ -162,8 +149,36 @@ function pick() {
 }
 
 // =====================
+// CLICK UI OR MODEL
+// =====================
+function handleClick() {
+
+    // 1) check UI first
+    tempMatrix.identity().extractRotation(controller.matrixWorld);
+
+    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
+
+    const uiHits = raycaster.intersectObjects(uiButtons);
+
+    if (uiHits.length > 0) {
+        uiHits[0].object.userData.onClick?.();
+        return;
+    }
+
+    // 2) otherwise pick model
+    pickModel();
+}
+
+// =====================
 // MOVE MODEL
 // =====================
+let dragging = false;
+
+controller.addEventListener("selectstart", () => dragging = true);
+controller.addEventListener("selectend", () => dragging = false);
+controller.addEventListener("select", handleClick);
+
 function moveModel() {
 
     if (!model) return;
@@ -175,33 +190,34 @@ function moveModel() {
 }
 
 // =====================
-// UPDATE LOOP
+// HIT TEST (floor placement)
 // =====================
-renderer.setAnimationLoop((timestamp, frame) => {
+let hitTestSource = null;
+let hitTestRequested = false;
 
-    // HIT TEST FLOOR
+renderer.setAnimationLoop((_, frame) => {
+
     const session = renderer.xr.getSession();
 
-    if (session && !hitTestSourceRequested) {
+    if (session && !hitTestRequested) {
 
-        session.requestReferenceSpace("viewer").then((refSpace) => {
-            session.requestHitTestSource({ space: refSpace }).then((source) => {
+        session.requestReferenceSpace("viewer").then(refSpace => {
+            session.requestHitTestSource({ space: refSpace }).then(source => {
                 hitTestSource = source;
             });
         });
 
-        hitTestSourceRequested = true;
+        hitTestRequested = true;
     }
 
     if (hitTestSource && frame) {
 
         const refSpace = renderer.xr.getReferenceSpace();
-        const hitResults = frame.getHitTestResults(hitTestSource);
+        const hits = frame.getHitTestResults(hitTestSource);
 
-        if (hitResults.length > 0) {
+        if (hits.length > 0) {
 
-            const hit = hitResults[0];
-            const pose = hit.getPose(refSpace);
+            const pose = hits[0].getPose(refSpace);
 
             reticle.visible = true;
             reticle.position.set(
@@ -212,13 +228,9 @@ renderer.setAnimationLoop((timestamp, frame) => {
         }
     }
 
-    // INTERACTION
     if (dragging) {
         moveModel();
     }
-
-    // PICK on tap
-    controller.addEventListener("select", pick);
 
     renderer.render(scene, camera);
 });
