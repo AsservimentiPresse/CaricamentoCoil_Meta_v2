@@ -2,285 +2,242 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>XR Wrist UI Final</title>
+<title>XR Hand Tracking Industrial Menu</title>
 
 <style>
-body { margin:0; overflow:hidden; }
+body { margin:0; overflow:hidden; background:#000; }
 </style>
-</head>
-
-<body>
 
 <script type="module">
 
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.125/build/three.module.js";
-import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/webxr/ARButton.js";
-import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/loaders/GLTFLoader.js";
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js";
+import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/webxr/ARButton.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/loaders/GLTFLoader.js";
 
-// =====================
-// SCENE
-// =====================
-const scene = new THREE.Scene();
+let scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 50);
+let camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 50);
 
-const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+let renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
 renderer.setSize(innerWidth, innerHeight);
 renderer.xr.enabled = true;
-
 document.body.appendChild(renderer.domElement);
+
 document.body.appendChild(ARButton.createButton(renderer, {
-  requiredFeatures:["hit-test"]
+  requiredFeatures: ["hand-tracking"]
 }));
 
-// =====================
 // LIGHT
-// =====================
-scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 2));
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
 
-const dir = new THREE.DirectionalLight(0xffffff, 2);
-dir.position.set(5,5,5);
-scene.add(dir);
-
-// =====================
+// ======================
 // MODEL
-// =====================
+// ======================
 let model;
 
 const loader = new GLTFLoader();
 
-loader.load("linea%20lunga_V4.glb", (gltf) => {
+loader.load("linea%20lunga_V4.glb", (gltf)=>{
 
   model = gltf.scene;
   scene.add(model);
 
-  model.position.set(0,0,-1);
+  model.position.set(0,0,-0.8);
   model.scale.set(1,1,1);
 });
 
-// =====================
-// CONTROLLERS
-// =====================
-const right = renderer.xr.getController(0);
-const left = renderer.xr.getController(1);
+// ======================
+// HANDS
+// ======================
+const controller1 = renderer.xr.getHand(0);
+const controller2 = renderer.xr.getHand(1);
 
-scene.add(right);
-scene.add(left);
+scene.add(controller1);
+scene.add(controller2);
 
-// =====================
-// LASERS (pointer)
-// =====================
-function makeLaser(color) {
+// helper pinch detection
+function isPinching(hand){
 
-  const geo = new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(0,0,0),
-    new THREE.Vector3(0,0,-1)
-  ]);
+  const indexTip = hand.joints["index-finger-tip"];
+  const thumbTip = hand.joints["thumb-tip"];
 
-  const mat = new THREE.LineBasicMaterial({ color });
+  if(!indexTip || !thumbTip) return false;
 
-  const line = new THREE.Line(geo, mat);
-  scene.add(line);
+  const d = indexTip.position.distanceTo(thumbTip.position);
 
-  return line;
+  return d < 0.03;
 }
 
-const laserR = makeLaser(0x00ffff);
-const laserL = makeLaser(0xff00ff);
+// palm facing camera (approx)
+function palmFacingCamera(hand){
 
-// =====================
-// WORLD RAYCAST
-// =====================
-const raycaster = new THREE.Raycaster();
+  const palm = hand.joints["wrist"];
+  if(!palm) return false;
 
-// =====================
-// MODEL PICK
-// =====================
-let selected = null;
+  const v = new THREE.Vector3();
+  v.setFromMatrixPosition(palm.matrixWorld);
 
-function pick(controller) {
+  const camDir = new THREE.Vector3(0,0,-1);
 
-  if (!model) return;
-
-  const origin = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld);
-  const dir = new THREE.Vector3();
-
-  controller.getWorldDirection(dir);
-
-  raycaster.set(origin, dir);
-
-  const hits = raycaster.intersectObject(model, true);
-
-  if (hits.length > 0) selected = hits[0].object;
+  return v.z < 0.2;
 }
 
-// =====================
-// WRIST UI (LEFT HAND)
-// =====================
-const wrist = new THREE.Group();
-scene.add(wrist);
+// ======================
+// MENU RADIAL
+// ======================
+const menu = new THREE.Group();
+scene.add(menu);
+menu.visible = false;
 
-// panel
-const panel = new THREE.Mesh(
-  new THREE.BoxGeometry(0.25, 0.18, 0.02),
-  new THREE.MeshStandardMaterial({
-    color: 0x111111,
-    emissive: 0x222222,
-    emissiveIntensity: 0.5
-  })
-);
+function createButton(label, x, y, color){
 
-wrist.add(panel);
-panel.position.set(0, -0.05, -0.1);
-
-// buttons
-function makeBtn(x, y, color, label) {
-
-  const b = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08,0.05,0.02),
-    new THREE.MeshStandardMaterial({
-      color,
-      emissive: color,
-      emissiveIntensity: 0.5
-    })
+  const mesh = new THREE.Mesh(
+    new THREE.CircleGeometry(0.05, 32),
+    new THREE.MeshStandardMaterial({ color })
   );
 
-  b.position.set(x,y,0.02);
-  b.name = label;
+  mesh.position.set(x,y,0);
+  mesh.userData.label = label;
 
-  panel.add(b);
-
-  return b;
+  menu.add(mesh);
+  return mesh;
 }
 
-const btnLock = makeBtn(-0.07, 0.03, 0xff4444, "lock");
-const btnZoom = makeBtn(0.07, 0.03, 0x44ff44, "zoom");
+const btnMove = createButton("MOVE", -0.1, 0.1, 0x00ff00);
+const btnRot  = createButton("ROT",  0.1, 0.1, 0xffaa00);
+const btnScale= createButton("SCALE",-0.1,-0.1,0x00aaff);
+const btnColor= createButton("COLOR", 0.1,-0.1,0xff00ff);
+const btnLock = createButton("LOCK",  0, 0, 0xff0000);
 
-// =====================
+// ======================
 // STATE
-// =====================
+// ======================
+let mode = "MOVE";
 let locked = false;
-let zoomMode = false;
 
-// =====================
-// ATTACH WRIST TO LEFT HAND
-// =====================
-function updateWrist() {
+// ======================
+// RAYCAST MENU
+// ======================
+const raycaster = new THREE.Raycaster();
 
-  const pos = new THREE.Vector3().setFromMatrixPosition(left.matrixWorld);
+function menuRay(hand){
 
-  wrist.position.copy(pos);
+  const tempMatrix = new THREE.Matrix4();
+  tempMatrix.identity().extractRotation(hand.matrixWorld);
 
-  const rot = new THREE.Quaternion().setFromRotationMatrix(left.matrixWorld);
-  wrist.quaternion.copy(rot);
-}
-
-// =====================
-// UI RAY FROM RIGHT HAND
-// =====================
-function uiRaycast() {
-
-  if (!zoomMode && !locked) return;
-
-  const origin = new THREE.Vector3().setFromMatrixPosition(right.matrixWorld);
-  const dir = new THREE.Vector3();
-
-  right.getWorldDirection(dir);
+  const origin = new THREE.Vector3().setFromMatrixPosition(hand.matrixWorld);
+  const dir = new THREE.Vector3(0,0,-1).applyMatrix4(tempMatrix);
 
   raycaster.set(origin, dir);
 
-  const hits = raycaster.intersectObjects([btnLock, btnZoom]);
+  const hits = raycaster.intersectObjects(menu.children);
 
-  if (hits.length > 0) {
+  if(hits.length>0){
 
     const h = hits[0].object;
 
-    if (h === btnLock) locked = !locked;
-    if (h === btnZoom) zoomMode = !zoomMode;
+    if(h.userData.label){
+      mode = h.userData.label;
+
+      if(mode === "LOCK"){
+        locked = !locked;
+      }
+    }
   }
 }
 
-// =====================
-// MOVE / ROTATE
-// =====================
-function moveModel() {
+// ======================
+// MENU POSITION (LEFT HAND)
+// ======================
+function updateMenu(hand){
 
-  if (!model || locked) return;
-
-  const p = new THREE.Vector3().setFromMatrixPosition(right.matrixWorld);
-  model.position.lerp(p, 0.2);
+  const p = new THREE.Vector3().setFromMatrixPosition(hand.matrixWorld);
+  menu.position.copy(p);
 }
 
-const last = new THREE.Vector3();
+// ======================
+// MODEL CONTROL
+// ======================
+let lastLeft = new THREE.Vector3();
 
-function rotateModel() {
+function updateModel(){
 
-  if (!model || locked) return;
+  if(!model || locked) return;
 
-  const p = new THREE.Vector3().setFromMatrixPosition(left.matrixWorld);
+  const right = controller2;
 
-  const dx = p.x - last.x;
+  const pos = new THREE.Vector3().setFromMatrixPosition(right.matrixWorld);
 
-  model.rotation.y += dx * 2;
-
-  last.copy(p);
-}
-
-// =====================
-// ZOOM (only if enabled)
-// =====================
-let baseDist = null;
-let baseScale = 1;
-
-function dist(a,b) {
-
-  const p1 = new THREE.Vector3().setFromMatrixPosition(a.matrixWorld);
-  const p2 = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
-
-  return p1.distanceTo(p2);
-}
-
-function zoom() {
-
-  if (!model || locked || !zoomMode) return;
-
-  const d = dist(right,left);
-
-  if (baseDist === null) {
-    baseDist = d;
-    baseScale = model.scale.x;
-    return;
+  if(mode === "MOVE"){
+    model.position.lerp(pos, 0.2);
   }
 
-  model.scale.setScalar(baseScale * (d / baseDist));
+  if(mode === "COLOR"){
+    model.traverse(o=>{
+      if(o.isMesh){
+        o.material.color.setHSL(Math.random(),1,0.5);
+      }
+    });
+  }
 }
 
-function resetZoom() {
-  baseDist = null;
+// ROTATE
+function rotateModel(){
+
+  if(!model || locked || mode !== "ROT") return;
+
+  const p = new THREE.Vector3().setFromMatrixPosition(controller1.matrixWorld);
+
+  const dx = p.x - lastLeft.x;
+
+  model.rotation.y += dx * 3;
+
+  lastLeft.copy(p);
 }
 
-// =====================
+// SCALE (pinch both hands)
+function scaleModel(){
+
+  if(!model || locked || mode !== "SCALE") return;
+
+  const a = new THREE.Vector3().setFromMatrixPosition(controller1.matrixWorld);
+  const b = new THREE.Vector3().setFromMatrixPosition(controller2.matrixWorld);
+
+  const d = a.distanceTo(b);
+
+  model.scale.setScalar(d * 2);
+}
+
+// ======================
 // LOOP
-// =====================
-renderer.setAnimationLoop(() => {
+// ======================
+renderer.setAnimationLoop(()=>{
 
-  if (model) {
+  const left = controller1;
+  const right = controller2;
 
-    updateWrist();
+  const pinchLeft = isPinching(left);
 
-    uiRaycast();
-
-    moveModel();
-    rotateModel();
-
-    if (zoomMode) zoom();
-    else resetZoom();
+  // OPEN MENU
+  if(pinchLeft && palmFacingCamera(left)){
+    menu.visible = true;
+  } else {
+    menu.visible = false;
   }
+
+  if(menu.visible){
+    updateMenu(left);
+    menuRay(right);
+  }
+
+  updateModel();
+  rotateModel();
+  scaleModel();
 
   renderer.render(scene,camera);
 });
 
 </script>
-
-</body>
+</head>
+<body></body>
 </html>
