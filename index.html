@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR INTERACTIVE</title>
+<title>MR FIX VISIBILITY</title>
 
 <style>
 body { margin: 0; overflow: hidden; }
@@ -31,20 +31,34 @@ document.body.appendChild(ARButton.createButton(renderer, {
     requiredFeatures: ["hit-test"]
 }));
 
-// LUCE
-scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.5));
+// 🔥 LUCE FORTE (IMPORTANTE IN MR)
+scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
+const light = new THREE.DirectionalLight(0xffffff, 2);
+light.position.set(2, 5, 2);
+scene.add(light);
 
-// 🎯 OGGETTI INTERATTIVI
+// 🔷 GROUND REFERENCE (IMPORTANTE)
+const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(2,2),
+    new THREE.MeshBasicMaterial({ color: 0x222222, side: THREE.DoubleSide, transparent: true, opacity: 0.2 })
+);
+floor.rotation.x = -Math.PI/2;
+floor.position.set(0, 0, -1);
+scene.add(floor);
+
+// 🔥 OGGETTI VISIBILI DAVANTI ALL'UTENTE
 const objects = [];
 
 function createButton(x, label, color) {
 
     const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.08, 0.08, 0.08),
+        new THREE.BoxGeometry(0.1, 0.1, 0.1),
         new THREE.MeshStandardMaterial({ color })
     );
 
-    mesh.position.set(x, 1.3, -0.5);
+    // 🔥 IMPORTANTISSIMO: davanti all’utente (non a caso)
+    mesh.position.set(x, 1.3, -0.7);
+
     mesh.userData.label = label;
 
     scene.add(mesh);
@@ -59,50 +73,40 @@ createButton(0, "A3", 0x0000ff);
 createButton(0.15, "A4", 0xffff00);
 createButton(0.3, "A5", 0xff00ff);
 
-// 🎮 CONTROLLER XR
+// 🎮 CONTROLLER
 const controller = renderer.xr.getController(0);
 scene.add(controller);
 
-// 🔥 RAY VISIVO (PUNTATORE)
-const geometry = new THREE.BufferGeometry().setFromPoints([
+// RAY VISIVO
+const rayGeo = new THREE.BufferGeometry().setFromPoints([
     new THREE.Vector3(0,0,0),
     new THREE.Vector3(0,0,-1)
 ]);
 
-const line = new THREE.Line(
-    geometry,
-    new THREE.LineBasicMaterial({ color: 0xff0000 })
-);
+const ray = new THREE.Line(rayGeo, new THREE.LineBasicMaterial({ color: 0xff0000 }));
+controller.add(ray);
 
-line.name = "ray";
-controller.add(line);
-
-// 🎯 RAYCAST LOGIC
+// 🎯 RAYCAST
 const raycaster = new THREE.Raycaster();
 const tempMatrix = new THREE.Matrix4();
 
-controller.addEventListener("selectstart", onSelect);
-
-function onSelect() {
+controller.addEventListener("selectstart", () => {
 
     tempMatrix.identity().extractRotation(controller.matrixWorld);
 
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
 
-    const intersects = raycaster.intersectObjects(objects);
+    const hits = raycaster.intersectObjects(objects);
 
-    if (intersects.length > 0) {
-
-        const obj = intersects[0].object;
-
-        // 🔥 CAMBIO COLORE
-        obj.material.color.set(Math.random() * 0xffffff);
+    if (hits.length > 0) {
+        hits[0].object.material.color.set(Math.random() * 0xffffff);
     }
-}
+});
 
 // 🔁 LOOP
 renderer.setAnimationLoop(() => {
+
     renderer.render(scene, camera);
 });
 
