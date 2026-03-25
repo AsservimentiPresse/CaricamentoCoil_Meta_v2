@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR Industrial Full Control</title>
+<title>MR Industrial Full Corrected</title>
 
 <style>
 body { margin:0; overflow:hidden; }
@@ -17,6 +17,9 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.125/build/three.mod
 import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/webxr/ARButton.js";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/loaders/GLTFLoader.js";
 
+// =====================
+// SCENE
+// =====================
 const scene = new THREE.Scene();
 scene.background = null;
 
@@ -75,8 +78,8 @@ loader.load("linea%20lunga_V4.glb", (gltf) => {
 // =====================
 // CONTROLLERS
 // =====================
-const controller0 = renderer.xr.getController(0); // destra
-const controller1 = renderer.xr.getController(1); // sinistra
+const controller0 = renderer.xr.getController(0); // mano destra
+const controller1 = renderer.xr.getController(1); // mano sinistra
 
 scene.add(controller0);
 scene.add(controller1);
@@ -101,37 +104,48 @@ addRay(controller0, 0xff0000);
 addRay(controller1, 0x00ff00);
 
 // =====================
-// RAY / INPUT STATE
+// INPUT STATE
 // =====================
-const raycaster = new THREE.Raycaster();
-const tempMatrix = new THREE.Matrix4();
-
-// MOVE / ROTATE STATE
 let draggingMove = false;
 let rotating = false;
+let pinchActive = false;
 
-// PINCH STATE
 let baseDistance = null;
 let baseScale = 1;
 
-// =====================
-// EVENTI
-// =====================
-
-// mano destra = move
-controller0.addEventListener("selectstart", () => draggingMove = true);
-controller0.addEventListener("selectend", () => draggingMove = false);
-
-// mano sinistra = rotate
-controller1.addEventListener("selectstart", () => rotating = true);
-controller1.addEventListener("selectend", () => rotating = false);
-
-// reset pinch
-controller0.addEventListener("selectend", () => baseDistance = null);
-controller1.addEventListener("selectend", () => baseDistance = null);
+const raycaster = new THREE.Raycaster();
+const tempMatrix = new THREE.Matrix4();
 
 // =====================
-// FUNZIONI
+// EVENTI CONTROLLER
+// =====================
+
+// MOVE + PINCH ATTIVO
+controller0.addEventListener("selectstart", () => {
+    draggingMove = true;
+    pinchActive = true;
+});
+
+controller0.addEventListener("selectend", () => {
+    draggingMove = false;
+    pinchActive = false;
+    baseDistance = null;
+});
+
+// ROTATE + PINCH ATTIVO
+controller1.addEventListener("selectstart", () => {
+    rotating = true;
+    pinchActive = true;
+});
+
+controller1.addEventListener("selectend", () => {
+    rotating = false;
+    pinchActive = false;
+    baseDistance = null;
+});
+
+// =====================
+// UTIL DISTANZA MANI
 // =====================
 function getDistance(c1, c2) {
 
@@ -144,7 +158,9 @@ function getDistance(c1, c2) {
     return p1.distanceTo(p2);
 }
 
+// =====================
 // MOVE
+// =====================
 function updateMove(controller) {
 
     if (!model) return;
@@ -160,7 +176,9 @@ function updateMove(controller) {
     model.position.lerp(target, 0.25);
 }
 
+// =====================
 // ROTATE
+// =====================
 const lastPos = new THREE.Vector3();
 
 function updateRotate(controller) {
@@ -177,16 +195,22 @@ function updateRotate(controller) {
     lastPos.copy(current);
 }
 
-// PINCH SCALE
+// =====================
+// PINCH SCALE (FIXED)
+// =====================
 function updatePinch() {
 
-    if (!model || !controller0 || !controller1) return;
+    if (!model || !pinchActive) {
+        baseDistance = null;
+        return;
+    }
 
     const d = getDistance(controller0, controller1);
 
     if (baseDistance === null) {
         baseDistance = d;
         baseScale = model.scale.x;
+        return;
     }
 
     const scaleFactor = d / baseDistance;
@@ -195,14 +219,13 @@ function updatePinch() {
 }
 
 // =====================
-// LOOP MR
+// LOOP
 // =====================
 renderer.setAnimationLoop(() => {
 
     if (draggingMove) updateMove(controller0);
     if (rotating) updateRotate(controller1);
 
-    // zoom con due mani
     updatePinch();
 
     renderer.render(scene, camera);
