@@ -78,8 +78,8 @@ loader.load("linea%20lunga_V4.glb", (gltf) => {
 // =====================
 // CONTROLLERS
 // =====================
-const controller0 = renderer.xr.getController(0); // mano destra
-const controller1 = renderer.xr.getController(1); // mano sinistra
+const controller0 = renderer.xr.getController(0);
+const controller1 = renderer.xr.getController(1);
 
 scene.add(controller0);
 scene.add(controller1);
@@ -104,7 +104,7 @@ addRay(controller0, 0xff0000);
 addRay(controller1, 0x00ff00);
 
 // =====================
-// INPUT STATE
+// INPUT STATE (UNCHANGED)
 // =====================
 let draggingMove = false;
 let rotating = false;
@@ -117,10 +117,8 @@ const raycaster = new THREE.Raycaster();
 const tempMatrix = new THREE.Matrix4();
 
 // =====================
-// EVENTI CONTROLLER
+// CONTROLLER EVENTS (UNCHANGED)
 // =====================
-
-// MOVE + PINCH ATTIVO
 controller0.addEventListener("selectstart", () => {
     draggingMove = true;
     pinchActive = true;
@@ -132,7 +130,6 @@ controller0.addEventListener("selectend", () => {
     baseDistance = null;
 });
 
-// ROTATE + PINCH ATTIVO
 controller1.addEventListener("selectstart", () => {
     rotating = true;
     pinchActive = true;
@@ -145,21 +142,7 @@ controller1.addEventListener("selectend", () => {
 });
 
 // =====================
-// UTIL DISTANZA MANI
-// =====================
-function getDistance(c1, c2) {
-
-    const p1 = new THREE.Vector3();
-    const p2 = new THREE.Vector3();
-
-    p1.setFromMatrixPosition(c1.matrixWorld);
-    p2.setFromMatrixPosition(c2.matrixWorld);
-
-    return p1.distanceTo(p2);
-}
-
-// =====================
-// MOVE
+// MOVE / ROTATE / SCALE (UNCHANGED)
 // =====================
 function updateMove(controller) {
 
@@ -176,9 +159,6 @@ function updateMove(controller) {
     model.position.lerp(target, 0.25);
 }
 
-// =====================
-// ROTATE
-// =====================
 const lastPos = new THREE.Vector3();
 
 function updateRotate(controller) {
@@ -195,9 +175,6 @@ function updateRotate(controller) {
     lastPos.copy(current);
 }
 
-// =====================
-// PINCH SCALE (FIXED)
-// =====================
 function updatePinch() {
 
     if (!model || !pinchActive) {
@@ -205,17 +182,88 @@ function updatePinch() {
         return;
     }
 
-    const d = getDistance(controller0, controller1);
+    const p1 = new THREE.Vector3().setFromMatrixPosition(controller0.matrixWorld);
+    const p2 = new THREE.Vector3().setFromMatrixPosition(controller1.matrixWorld);
+
+    const d = p1.distanceTo(p2);
 
     if (baseDistance === null) {
         baseDistance = d;
         baseScale = model.scale.x;
-        return;
     }
 
-    const scaleFactor = d / baseDistance;
+    model.scale.setScalar(baseScale * (d / baseDistance));
+}
 
-    model.scale.setScalar(baseScale * scaleFactor);
+// =====================
+// 🎨 5 COLOR BUTTONS (NEW)
+// =====================
+const buttons = [];
+const colors = [
+    0xff0000,
+    0x00ff00,
+    0x0000ff,
+    0xffff00,
+    0xff00ff
+];
+
+// posizione davanti all'utente
+for (let i = 0; i < colors.length; i++) {
+
+    const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.05, 16, 16),
+        new THREE.MeshStandardMaterial({
+            color: colors[i],
+            emissive: colors[i],
+            emissiveIntensity: 0.4
+        })
+    );
+
+    mesh.position.set((i - 2) * 0.15, 1.2, -1);
+    mesh.userData.color = colors[i];
+
+    scene.add(mesh);
+    buttons.push(mesh);
+}
+
+// =====================
+// COLOR PICK (RAYCAST)
+// =====================
+let canClick = false;
+
+controller0.addEventListener("selectstart", () => canClick = true);
+controller0.addEventListener("selectend", () => canClick = false);
+
+function updateColorPick() {
+
+    if (!model) return;
+
+    const origin = new THREE.Vector3().setFromMatrixPosition(controller0.matrixWorld);
+    const dir = new THREE.Vector3(0, 0, -1).applyMatrix4(controller0.matrixWorld);
+
+    raycaster.set(origin, dir);
+
+    const hit = raycaster.intersectObjects(buttons);
+
+    // hover glow
+    buttons.forEach(b => b.material.emissiveIntensity = 0.4);
+
+    if (hit.length) {
+
+        const obj = hit[0].object;
+        obj.material.emissiveIntensity = 1.2;
+
+        if (canClick) {
+
+            const color = obj.userData.color;
+
+            model.traverse(o => {
+                if (o.isMesh) {
+                    o.material.color.set(color);
+                }
+            });
+        }
+    }
 }
 
 // =====================
@@ -227,6 +275,7 @@ renderer.setAnimationLoop(() => {
     if (rotating) updateRotate(controller1);
 
     updatePinch();
+    updateColorPick();
 
     renderer.render(scene, camera);
 });
