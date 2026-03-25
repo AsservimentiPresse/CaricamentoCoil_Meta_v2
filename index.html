@@ -2,8 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR Industrial Full Corrected</title>
-
+<title>MR Full Interaction System</title>
 <style>
 body { margin:0; overflow:hidden; }
 </style>
@@ -21,214 +20,204 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/js
 // SCENE
 // =====================
 const scene = new THREE.Scene();
-scene.background = null;
 
-const camera = new THREE.PerspectiveCamera(
-    70,
-    window.innerWidth / window.innerHeight,
-    0.01,
-    40
-);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 40);
 
-const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true
-});
-
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
-renderer.xr.setReferenceSpaceType("local");
 
 document.body.appendChild(renderer.domElement);
-document.body.appendChild(ARButton.createButton(renderer, {
-    requiredFeatures: ["hit-test"]
-}));
+document.body.appendChild(ARButton.createButton(renderer, { requiredFeatures:["hit-test"] }));
 
-// =====================
-// LUCI
-// =====================
 scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
-
-const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-dirLight.position.set(5, 10, 5);
-scene.add(dirLight);
+scene.add(new THREE.DirectionalLight(0xffffff, 2));
 
 // =====================
-// MODELLO
+// MODEL
 // =====================
 let model;
 
 const loader = new GLTFLoader();
 
-loader.load("linea%20lunga_V4.glb", (gltf) => {
+loader.load("linea%20lunga_V4.glb", (gltf)=>{
 
     model = gltf.scene;
     scene.add(model);
 
     const box = new THREE.Box3().setFromObject(model);
-    const center = box.getCenter(new THREE.Vector3());
-    model.position.sub(center);
-
     const size = box.getSize(new THREE.Vector3()).length();
-    model.scale.setScalar(1.5 / size);
 
-    model.position.set(0, 0, -1);
+    model.scale.setScalar(1.5 / size);
+    model.position.set(0,0,-1);
 });
 
 // =====================
 // CONTROLLERS
 // =====================
-const controller0 = renderer.xr.getController(0); // mano destra
-const controller1 = renderer.xr.getController(1); // mano sinistra
+const controller0 = renderer.xr.getController(0); // right = UI click
+const controller1 = renderer.xr.getController(1); // left = interaction
 
 scene.add(controller0);
 scene.add(controller1);
 
-// laser visivi
-function addRay(controller, color) {
+// =====================
+// MODE SYSTEM
+// =====================
+let mode = "move";
 
-    const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0, 0, -1)
-    ]);
+// =====================
+// MR UI (3D BUTTONS)
+// =====================
+const ui = [];
+const raycaster = new THREE.Raycaster();
 
-    const line = new THREE.Line(
-        geo,
-        new THREE.LineBasicMaterial({ color })
+// COLORS BUTTONS
+const colors = [0xff0000,0x00ff00,0x0000ff,0xffff00,0xff00ff];
+
+for(let i=0;i<colors.length;i++){
+
+    const m = new THREE.Mesh(
+        new THREE.SphereGeometry(0.05,16,16),
+        new THREE.MeshStandardMaterial({
+            color:colors[i],
+            emissive:colors[i],
+            emissiveIntensity:0.5
+        })
     );
 
-    controller.add(line);
+    m.position.set(-0.3 + i*0.15, 1.2, -0.6);
+    m.userData.type = "color";
+    m.userData.color = colors[i];
+
+    scene.add(m);
+    ui.push(m);
 }
 
-addRay(controller0, 0xff0000);
-addRay(controller1, 0x00ff00);
+// MODE BUTTONS IN MR SPACE
+const modes = ["move","rotate","zoom"];
+
+for(let i=0;i<modes.length;i++){
+
+    const m = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08,0.08,0.08),
+        new THREE.MeshStandardMaterial({color:0x222222})
+    );
+
+    m.position.set(-0.2 + i*0.2, 1.05, -0.6);
+    m.userData.type = "mode";
+    m.userData.mode = modes[i];
+
+    scene.add(m);
+    ui.push(m);
+}
 
 // =====================
-// INPUT STATE
+// UI INTERACTION (RIGHT HAND ONLY)
 // =====================
-let draggingMove = false;
-let rotating = false;
-let pinchActive = false;
-
-let baseDistance = null;
-let baseScale = 1;
-
-const raycaster = new THREE.Raycaster();
 const tempMatrix = new THREE.Matrix4();
 
-// =====================
-// EVENTI CONTROLLER
-// =====================
+function updateUI(){
 
-// MOVE + PINCH ATTIVO
-controller0.addEventListener("selectstart", () => {
-    draggingMove = true;
-    pinchActive = true;
-});
+    tempMatrix.identity().extractRotation(controller0.matrixWorld);
 
-controller0.addEventListener("selectend", () => {
-    draggingMove = false;
-    pinchActive = false;
-    baseDistance = null;
-});
+    raycaster.ray.origin.setFromMatrixPosition(controller0.matrixWorld);
+    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
 
-// ROTATE + PINCH ATTIVO
-controller1.addEventListener("selectstart", () => {
-    rotating = true;
-    pinchActive = true;
-});
+    const hits = raycaster.intersectObjects(ui);
 
-controller1.addEventListener("selectend", () => {
-    rotating = false;
-    pinchActive = false;
-    baseDistance = null;
-});
+    ui.forEach(o=>{
+        o.material.emissiveIntensity = 0.5;
+    });
 
-// =====================
-// UTIL DISTANZA MANI
-// =====================
-function getDistance(c1, c2) {
+    if(hits.length){
 
-    const p1 = new THREE.Vector3();
-    const p2 = new THREE.Vector3();
+        const obj = hits[0].object;
+        obj.material.emissiveIntensity = 1.5;
 
-    p1.setFromMatrixPosition(c1.matrixWorld);
-    p2.setFromMatrixPosition(c2.matrixWorld);
+        if(controller0.userData.selecting){
 
-    return p1.distanceTo(p2);
+            if(obj.userData.type==="color"){
+
+                model.traverse(m=>{
+                    if(m.isMesh) m.material.color.set(obj.userData.color);
+                });
+            }
+
+            if(obj.userData.type==="mode"){
+                mode = obj.userData.mode;
+            }
+        }
+    }
 }
+
+// =====================
+// EVENTS
+// =====================
+controller0.addEventListener("selectstart",()=>controller0.userData.selecting=true);
+controller0.addEventListener("selectend",()=>controller0.userData.selecting=false);
 
 // =====================
 // MOVE
 // =====================
-function updateMove(controller) {
+function move(){
 
-    if (!model) return;
+    if(!model) return;
 
-    tempMatrix.identity().extractRotation(controller.matrixWorld);
+    const p = new THREE.Vector3();
+    p.setFromMatrixPosition(controller1.matrixWorld);
 
-    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-
-    const target = new THREE.Vector3();
-    raycaster.ray.at(1.5, target);
-
-    model.position.lerp(target, 0.25);
+    model.position.lerp(new THREE.Vector3(p.x,p.y,p.z-1),0.2);
 }
 
 // =====================
 // ROTATE
 // =====================
-const lastPos = new THREE.Vector3();
+const last = new THREE.Vector3();
 
-function updateRotate(controller) {
+function rotate(){
 
-    if (!model) return;
+    if(!model) return;
 
-    const current = new THREE.Vector3();
-    current.setFromMatrixPosition(controller.matrixWorld);
+    const p = new THREE.Vector3().setFromMatrixPosition(controller1.matrixWorld);
 
-    const deltaX = current.x - lastPos.x;
+    model.rotation.y += (p.x - last.x)*2;
 
-    model.rotation.y += deltaX * 2.0;
-
-    lastPos.copy(current);
+    last.copy(p);
 }
 
 // =====================
-// PINCH SCALE (FIXED)
+// ZOOM (PINCH)
 // =====================
-function updatePinch() {
+let baseD=null, baseS=1;
 
-    if (!model || !pinchActive) {
-        baseDistance = null;
-        return;
+function zoom(){
+
+    const p1 = new THREE.Vector3().setFromMatrixPosition(controller0.matrixWorld);
+    const p2 = new THREE.Vector3().setFromMatrixPosition(controller1.matrixWorld);
+
+    const d = p1.distanceTo(p2);
+
+    if(baseD===null){
+        baseD=d;
+        baseS=model.scale.x;
     }
 
-    const d = getDistance(controller0, controller1);
-
-    if (baseDistance === null) {
-        baseDistance = d;
-        baseScale = model.scale.x;
-        return;
-    }
-
-    const scaleFactor = d / baseDistance;
-
-    model.scale.setScalar(baseScale * scaleFactor);
+    model.scale.setScalar(baseS*(d/baseD));
 }
 
 // =====================
 // LOOP
 // =====================
-renderer.setAnimationLoop(() => {
+renderer.setAnimationLoop(()=>{
 
-    if (draggingMove) updateMove(controller0);
-    if (rotating) updateRotate(controller1);
+    updateUI();
 
-    updatePinch();
+    if(mode==="move") move();
+    if(mode==="rotate") rotate();
+    if(mode==="zoom") zoom();
 
-    renderer.render(scene, camera);
+    renderer.render(scene,camera);
 });
 
 </script>
