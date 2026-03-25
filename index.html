@@ -2,7 +2,8 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR Industrial Stable + Radial Menu FIX</title>
+<title>MR Industrial Stable + Simple Colors</title>
+
 <style>
 body { margin:0; overflow:hidden; }
 </style>
@@ -21,7 +22,12 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/js
 // =====================
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 40);
+const camera = new THREE.PerspectiveCamera(
+  70,
+  innerWidth / innerHeight,
+  0.01,
+  40
+);
 
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
 renderer.setSize(innerWidth, innerHeight);
@@ -29,16 +35,24 @@ renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType("local");
 
 document.body.appendChild(renderer.domElement);
-document.body.appendChild(ARButton.createButton(renderer,{ requiredFeatures:["hit-test"]}));
+document.body.appendChild(
+  ARButton.createButton(renderer,{ requiredFeatures:["hit-test"]})
+);
 
+// LIGHT
 scene.add(new THREE.HemisphereLight(0xffffff,0x444444,2));
+const dir = new THREE.DirectionalLight(0xffffff,1.5);
+dir.position.set(5,10,5);
+scene.add(dir);
 
 // =====================
 // MODEL
 // =====================
 let model;
 
-new GLTFLoader().load("linea%20lunga_V4.glb",(gltf)=>{
+const loader = new GLTFLoader();
+
+loader.load("linea%20lunga_V4.glb",(gltf)=>{
 
   model = gltf.scene;
   scene.add(model);
@@ -54,30 +68,31 @@ new GLTFLoader().load("linea%20lunga_V4.glb",(gltf)=>{
 // =====================
 // CONTROLLERS
 // =====================
-const c0 = renderer.xr.getController(0); // destra
-const c1 = renderer.xr.getController(1); // sinistra
+const c0 = renderer.xr.getController(0); // right
+const c1 = renderer.xr.getController(1); // left
 
 scene.add(c0);
 scene.add(c1);
 
 // =====================
-// MOVE / ROTATE / SCALE (UNCHANGED LOGIC SAFE)
+// MOVE / ROTATE / SCALE (UNCHANGED)
 // =====================
-let move = false;
-let rotate = false;
-let pinch = false;
+let move=false;
+let rotate=false;
+let pinch=false;
 
-let baseDist = null;
-let baseScale = 1;
+let baseDist=null;
+let baseScale=1;
 
-const raycaster = new THREE.Raycaster();
-const tmpMat = new THREE.Matrix4();
+const tmp = new THREE.Matrix4();
 
-c0.addEventListener("selectstart",()=>{ move=true; });
+// MOVE
+c0.addEventListener("selectstart",()=> move=true);
 c0.addEventListener("selectend",()=>{ move=false; baseDist=null; });
 
-c1.addEventListener("selectstart",()=>{ rotate=true; openMenu(); });
-c1.addEventListener("selectend",()=>{ rotate=false; baseDist=null; });
+// ROTATE
+c1.addEventListener("selectstart",()=> rotate=true);
+c1.addEventListener("selectend",()=> rotate=false);
 
 // =====================
 // MOVE
@@ -86,9 +101,9 @@ function updateMove(){
 
   if(!model || !move) return;
 
-  tmpMat.identity().extractRotation(c0.matrixWorld);
+  tmp.identity().extractRotation(c0.matrixWorld);
 
-  const dir = new THREE.Vector3(0,0,-1).applyMatrix4(tmpMat);
+  const dir = new THREE.Vector3(0,0,-1).applyMatrix4(tmp);
   const origin = new THREE.Vector3().setFromMatrixPosition(c0.matrixWorld);
 
   const target = origin.clone().add(dir.multiplyScalar(1.2));
@@ -133,63 +148,51 @@ function updateScale(){
 }
 
 // =====================
-// RADIAL MENU
+// SIMPLE COLOR BUTTONS (FIXED IN SPACE)
 // =====================
-const menu = new THREE.Group();
-scene.add(menu);
-menu.visible = false;
+const colors = [
+  { c:0xff0000, name:"red", pos:[-0.3,1.2,-1] },
+  { c:0x00ff00, name:"green", pos:[0,1.2,-1] },
+  { c:0x0000ff, name:"blue", pos:[0.3,1.2,-1] }
+];
 
-// buttons
 const buttons = [];
 
-function createButton(angle,color,name){
+colors.forEach(col=>{
 
   const m = new THREE.Mesh(
-    new THREE.CircleGeometry(0.05,32),
+    new THREE.SphereGeometry(0.05,16,16),
     new THREE.MeshStandardMaterial({
-      color,
-      emissive:color,
-      emissiveIntensity:0.3
+      color:col.c,
+      emissive:col.c,
+      emissiveIntensity:0.4
     })
   );
 
-  m.position.set(Math.cos(angle)*0.18, Math.sin(angle)*0.18, 0);
-  m.userData.name = name;
+  m.position.set(...col.pos);
+  m.userData.color = col.c;
 
-  menu.add(m);
+  scene.add(m);
   buttons.push(m);
-}
-
-createButton(0,0xff0000,"red");
-createButton(1.2,0x00ff00,"green");
-createButton(2.4,0x0000ff,"blue");
-createButton(3.6,0xffff00,"yellow");
-createButton(4.8,0xff00ff,"purple");
+});
 
 // =====================
-// MENU POSITION
+// RAYCAST
 // =====================
-function updateMenu(){
+const raycaster = new THREE.Raycaster();
 
-  const p = new THREE.Vector3().setFromMatrixPosition(c1.matrixWorld);
-  menu.position.copy(p);
+// CLICK STATE
+c0.userData.down = false;
 
-  menu.lookAt(camera.position);
-}
-
-// =====================
-// OPEN MENU
-// =====================
-function openMenu(){
-  menu.visible = !menu.visible;
-}
+c0.addEventListener("selectstart",()=> c0.userData.down=true);
+c0.addEventListener("selectend",()=> c0.userData.down=false);
 
 // =====================
-// RAYCAST MENU INTERACTION
+// COLOR PICK LOGIC
 // =====================
-function handleMenu(){
+function updateColorPick(){
 
-  if(!menu.visible || !model) return;
+  if(!model) return;
 
   const origin = new THREE.Vector3().setFromMatrixPosition(c0.matrixWorld);
   const dir = new THREE.Vector3(0,0,-1).applyMatrix4(c0.matrixWorld);
@@ -198,38 +201,29 @@ function handleMenu(){
 
   const hit = raycaster.intersectObjects(buttons);
 
-  // reset hover
+  // reset glow
   buttons.forEach(b=>{
-    b.material.emissiveIntensity = 0.3;
+    b.material.emissiveIntensity=0.4;
   });
 
   if(hit.length){
 
     const obj = hit[0].object;
+    obj.material.emissiveIntensity=1.2;
 
-    obj.material.emissiveIntensity = 1.2;
+    // CLICK
+    if(c0.userData.down){
 
-    // CLICK (select pressed)
-    if(c0.userData.isSelecting){
-
-      const c = obj.userData.name;
+      const color = obj.userData.color;
 
       model.traverse(o=>{
         if(o.isMesh){
-          if(c==="red") o.material.color.set(0xff0000);
-          if(c==="green") o.material.color.set(0x00ff00);
-          if(c==="blue") o.material.color.set(0x0000ff);
-          if(c==="yellow") o.material.color.set(0xffff00);
-          if(c==="purple") o.material.color.set(0xff00ff);
+          o.material.color.set(color);
         }
       });
     }
   }
 }
-
-// detect click state
-c0.addEventListener("selectstart",()=>{ c0.userData.isSelecting=true; });
-c0.addEventListener("selectend",()=>{ c0.userData.isSelecting=false; });
 
 // =====================
 // LOOP
@@ -239,11 +233,7 @@ renderer.setAnimationLoop(()=>{
   updateMove();
   updateRotate();
   updateScale();
-
-  if(menu.visible){
-    updateMenu();
-    handleMenu();
-  }
+  updateColorPick();
 
   renderer.render(scene,camera);
 });
