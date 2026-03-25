@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR FINAL BASE</title>
+<title>MR INTERACTION STEP</title>
 
 <style>
 body { margin:0; overflow:hidden; }
@@ -19,62 +19,97 @@ import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/loaders/GLTFLoader.js";
 
 const scene = new THREE.Scene();
-
-/* 🔥 QUESTO È CIÒ CHE ATTIVA MR */
 scene.background = null;
 
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 40);
 
-const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true
-});
-
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 
-/* 🔥 MR MODE */
 renderer.xr.setReferenceSpaceType("local");
 
 document.body.appendChild(renderer.domElement);
-
-/* 🔥 QUEST 3 MR BUTTON */
 document.body.appendChild(ARButton.createButton(renderer, {
     requiredFeatures: ["hit-test"]
 }));
 
-/* LUCE (necessaria anche in MR) */
+// LUCE
 scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
+const light = new THREE.DirectionalLight(0xffffff, 2);
+light.position.set(5,10,5);
+scene.add(light);
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-dirLight.position.set(5,10,5);
-scene.add(dirLight);
+// MODELLO
+let model;
 
-/* MODELLO GLB */
 const loader = new GLTFLoader();
 
 loader.load("linea%20lunga_V4.glb", (gltf) => {
 
-    const model = gltf.scene;
+    model = gltf.scene;
     scene.add(model);
 
-    /* centra modello nello spazio reale */
     const box = new THREE.Box3().setFromObject(model);
     const center = box.getCenter(new THREE.Vector3());
     model.position.sub(center);
 
-    /* scala realistica MR */
     const size = box.getSize(new THREE.Vector3()).length();
     model.scale.setScalar(1.5 / size);
 
-    /* posizionamento davanti all’utente */
-    model.position.z = -1;
+    model.position.set(0, 0, -1);
 
 });
 
-/* LOOP MR */
+// 🎮 CONTROLLER
+const controller = renderer.xr.getController(0);
+scene.add(controller);
+
+// 🔴 LASER VISIVO
+const geometry = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0),
+    new THREE.Vector3(0,0,-1)
+]);
+
+const line = new THREE.Line(
+    geometry,
+    new THREE.LineBasicMaterial({ color: 0xff0000 })
+);
+
+controller.add(line);
+
+// 🎯 RAYCAST
+const raycaster = new THREE.Raycaster();
+const tempMatrix = new THREE.Matrix4();
+
+// 🔥 INTERAZIONE: MOVE MODELLO
+let dragging = false;
+
+controller.addEventListener("selectstart", () => dragging = true);
+controller.addEventListener("selectend", () => dragging = false);
+
+function updateInteraction() {
+
+    if (!model || !dragging) return;
+
+    tempMatrix.identity().extractRotation(controller.matrixWorld);
+
+    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
+
+    const point = new THREE.Vector3();
+    raycaster.ray.at(1.5, point);
+
+    model.position.lerp(point, 0.2);
+}
+
+// LOOP
 renderer.setAnimationLoop(() => {
+
+    updateInteraction();
+
     renderer.render(scene, camera);
+
 });
 
 </script>
