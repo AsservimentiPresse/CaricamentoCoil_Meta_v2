@@ -2,10 +2,10 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>XR STEP 3</title>
+<title>XR GLB STABLE</title>
 
 <style>
-body { margin: 0; overflow: hidden; background: black; }
+body { margin:0; overflow:hidden; }
 </style>
 
 </head>
@@ -16,6 +16,7 @@ body { margin: 0; overflow: hidden; background: black; }
 
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.125/build/three.module.js";
 import { VRButton } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/webxr/VRButton.js";
+import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/loaders/GLTFLoader.js";
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x111111);
@@ -23,78 +24,47 @@ scene.background = new THREE.Color(0x111111);
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
 camera.position.set(0, 1.6, 3);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+const renderer = new THREE.WebGLRenderer({ antialias:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 
 document.body.appendChild(renderer.domElement);
 document.body.appendChild(VRButton.createButton(renderer));
 
-// LUCE
+// LUCI (IMPORTANTISSIMO per GLB industriali)
 scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
+const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+dirLight.position.set(5,10,5);
+scene.add(dirLight);
 
-// CUBO
-const cube = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3,0.3,0.3),
-    new THREE.MeshStandardMaterial({ color: 0x00ff00 })
-);
-cube.position.set(0, 1.5, -1);
-scene.add(cube);
+// MODELLO GLB
+let model;
 
-// 🎮 CONTROLLER
-const controller1 = renderer.xr.getController(0);
-const controller2 = renderer.xr.getController(1);
+const loader = new GLTFLoader();
 
-scene.add(controller1);
-scene.add(controller2);
+loader.load("linea%20lunga_V4.glb", (gltf) => {
 
-// 🔴 LASER
-function addLaser(controller) {
+    model = gltf.scene;
+    scene.add(model);
 
-    const geometry = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0,0,0),
-        new THREE.Vector3(0,0,-1)
-    ]);
+    // centra modello
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center);
 
-    const line = new THREE.Line(
-        geometry,
-        new THREE.LineBasicMaterial({ color: 0xff0000 })
-    );
+    // scala industriale corretta
+    const size = box.getSize(new THREE.Vector3()).length();
+    model.scale.setScalar(2 / size);
 
-    controller.add(line);
-}
+});
 
-addLaser(controller1);
-addLaser(controller2);
-
-// 🎯 RAYCAST SETUP
-const raycaster = new THREE.Raycaster();
-const tempMatrix = new THREE.Matrix4();
-
-function handleSelect(controller) {
-
-    tempMatrix.identity().extractRotation(controller.matrixWorld);
-
-    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-
-    const intersects = raycaster.intersectObjects([cube]);
-
-    if (intersects.length > 0) {
-
-        // 🔥 INTERAZIONE: cambia colore
-        cube.material.color.set(Math.random() * 0xffffff);
-    }
-}
-
-// 🎮 EVENTI TRIGGER
-controller1.addEventListener("selectstart", () => handleSelect(controller1));
-controller2.addEventListener("selectstart", () => handleSelect(controller2));
+// XR CONTROLLER (BASE SICURA)
+const controller = renderer.xr.getController(0);
+scene.add(controller);
 
 // LOOP
 renderer.setAnimationLoop(() => {
 
-    cube.rotation.y += 0.01;
     renderer.render(scene, camera);
 
 });
