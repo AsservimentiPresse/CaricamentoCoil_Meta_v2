@@ -2,10 +2,10 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR Industrial Final Pro</title>
+<title>MR Industrial Pro Fixed</title>
 
 <style>
-body { margin:0; overflow:hidden; }
+body { margin: 0; overflow: hidden; }
 </style>
 </head>
 
@@ -21,26 +21,32 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/js
 // SCENE
 // =====================
 const scene = new THREE.Scene();
-scene.background = null;
 
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 40);
+const camera = new THREE.PerspectiveCamera(
+  70,
+  window.innerWidth / window.innerHeight,
+  0.01,
+  50
+);
 
-const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 
 document.body.appendChild(renderer.domElement);
-document.body.appendChild(ARButton.createButton(renderer, {
+document.body.appendChild(
+  ARButton.createButton(renderer, {
     requiredFeatures: ["hit-test"]
-}));
+  })
+);
 
 // =====================
-// LIGHT (più moderno)
+// LIGHT
 // =====================
 scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2));
 
 const dir = new THREE.DirectionalLight(0xffffff, 2.5);
-dir.position.set(5,10,5);
+dir.position.set(5, 10, 5);
 scene.add(dir);
 
 // =====================
@@ -52,23 +58,19 @@ const loader = new GLTFLoader();
 
 loader.load("linea%20lunga_V4.glb", (gltf) => {
 
-    model = gltf.scene;
-    scene.add(model);
+  model = gltf.scene;
+  scene.add(model);
 
-    const box = new THREE.Box3().setFromObject(model);
-    const center = box.getCenter(new THREE.Vector3());
-    model.position.sub(center);
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
 
-    const size = box.getSize(new THREE.Vector3()).length();
-    model.scale.setScalar(1.2 / size);
+  model.position.sub(center);
 
-    model.position.set(0, 0, -1);
+  const size = box.getSize(new THREE.Vector3()).length();
+  model.scale.setScalar(1.2 / size);
+
+  model.position.set(0, 0, -1);
 });
-
-// =====================
-// LOCK STATE
-// =====================
-let locked = false;
 
 // =====================
 // CONTROLLERS
@@ -80,37 +82,41 @@ scene.add(right);
 scene.add(left);
 
 // =====================
-// VISUAL POINTER (CURSORS FIX)
+// RAYCAST
 // =====================
-function createCursor(color) {
+const raycaster = new THREE.Raycaster();
+const tempMatrix = new THREE.Matrix4();
 
-    const cursor = new THREE.Mesh(
-        new THREE.SphereGeometry(0.01, 16, 16),
-        new THREE.MeshBasicMaterial({
-            color,
-            emissive: color,
-            emissiveIntensity: 1
-        })
-    );
+// =====================
+// LASERS (CURSORS PRO)
+// =====================
+function createLaser(color) {
 
-    scene.add(cursor);
-    return cursor;
+  const geo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 0, -1)
+  ]);
+
+  const mat = new THREE.LineBasicMaterial({ color });
+
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+
+  return line;
 }
 
-const cursorR = createCursor(0x00ffff);
-const cursorL = createCursor(0xff00ff);
+const laserR = createLaser(0x00ffff);
+const laserL = createLaser(0xff00ff);
 
-// =====================
-// UPDATE CURSORS
-// =====================
-function updateCursors() {
+// hit markers
+const hitGeo = new THREE.SphereGeometry(0.008);
+const hitMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-    const rp = new THREE.Vector3().setFromMatrixPosition(right.matrixWorld);
-    const lp = new THREE.Vector3().setFromMatrixPosition(left.matrixWorld);
+const hitR = new THREE.Mesh(hitGeo, hitMat.clone());
+const hitL = new THREE.Mesh(hitGeo, hitMat.clone());
 
-    cursorR.position.copy(rp);
-    cursorL.position.copy(lp);
-}
+scene.add(hitR);
+scene.add(hitL);
 
 // =====================
 // STATE
@@ -118,71 +124,62 @@ function updateCursors() {
 let move = false;
 let rotate = false;
 
+let locked = false;
+
 let baseDistance = null;
 let baseScale = 1;
 
+let selected = null;
+
 // =====================
-// DIST
+// DISTANCE
 // =====================
-function dist(a,b) {
-    const p1 = new THREE.Vector3().setFromMatrixPosition(a.matrixWorld);
-    const p2 = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
-    return p1.distanceTo(p2);
+function dist(a, b) {
+
+  const p1 = new THREE.Vector3().setFromMatrixPosition(a.matrixWorld);
+  const p2 = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+
+  return p1.distanceTo(p2);
 }
 
 // =====================
-// MOVE / ROTATE ONLY IF NOT LOCKED
+// LASER UPDATE + HIT TEST
 // =====================
-right.addEventListener("selectstart", () => move = true);
-right.addEventListener("selectend", () => move = false);
+function updateLaser(controller, laser, hitDot) {
 
-left.addEventListener("selectstart", () => rotate = true);
-left.addEventListener("selectend", () => rotate = false);
+  if (!model) return [];
 
-// =====================
-// MOVE
-// =====================
-function updateMove() {
+  tempMatrix.identity().extractRotation(controller.matrixWorld);
 
-    if (!model || locked) return;
+  raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+  raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
-    const p = new THREE.Vector3().setFromMatrixPosition(right.matrixWorld);
-    model.position.lerp(p, 0.2);
-}
+  const hits = raycaster.intersectObject(model, true);
 
-// =====================
-// ROTATE
-// =====================
-const last = new THREE.Vector3();
+  const origin = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld);
 
-function updateRotate() {
+  laser.position.copy(origin);
 
-    if (!model || locked) return;
+  laser.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 0, 1),
+    raycaster.ray.direction.clone().normalize()
+  );
 
-    const p = new THREE.Vector3().setFromMatrixPosition(left.matrixWorld);
+  laser.scale.z = 2;
 
-    const dx = p.x - last.x;
-    model.rotation.y += dx * 2.0;
+  if (hits.length > 0) {
 
-    last.copy(p);
-}
+    hitDot.visible = true;
+    hitDot.position.copy(hits[0].point);
 
-// =====================
-// ZOOM (PINCH IMPROVED)
-// =====================
-function updateZoom() {
+    hitDot.material.color.set(0x00ff88);
 
-    if (!model || locked) return;
+  } else {
 
-    const d = dist(right, left);
+    hitDot.visible = false;
+  }
 
-    if (baseDistance === null) {
-        baseDistance = d;
-        baseScale = model.scale.x;
-        return;
-    }
-
-    model.scale.setScalar(baseScale * (d / baseDistance));
+  return hits;
 }
 
 // =====================
@@ -193,119 +190,193 @@ scene.add(ui);
 
 const buttons = [];
 
-function makeBtn(x, color, fn, label) {
+function makeBtn(x, color, fn) {
 
-    const b = new THREE.Mesh(
-        new THREE.BoxGeometry(0.12,0.06,0.02),
-        new THREE.MeshStandardMaterial({
-            color,
-            emissive: color,
-            emissiveIntensity: 0.5
-        })
-    );
+  const b = new THREE.Mesh(
+    new THREE.BoxGeometry(0.12, 0.06, 0.02),
+    new THREE.MeshStandardMaterial({
+      color,
+      emissive: color,
+      emissiveIntensity: 0.5
+    })
+  );
 
-    b.position.set(x, 0.25, -0.4); // 🔥 VICINO AL GLB
-    b.userData.fn = fn;
-    b.name = label;
+  b.position.set(x, 0.25, -0.35);
+  b.userData.fn = fn;
 
-    ui.add(b);
-    buttons.push(b);
+  ui.add(b);
+  buttons.push(b);
 
-    return b;
+  return b;
 }
 
-// COLORI BRILLANTI
-makeBtn(-0.25, 0xff3b3b, () => {
-    if (selected) selected.material.color.set(0xff3b3b);
-}, "red");
+// color buttons
+makeBtn(-0.25, 0xff4444, () => {
+  if (selected) selected.material.color.set(0xff4444);
+});
 
-makeBtn(0, 0x3bff6a, () => {
-    if (selected) selected.material.color.set(0x3bff6a);
-}, "green");
+makeBtn(0, 0x44ff44, () => {
+  if (selected) selected.material.color.set(0x44ff44);
+});
 
-makeBtn(0.25, 0x3b82ff, () => {
-    if (selected) selected.material.color.set(0x3b82ff);
-}, "blue");
+makeBtn(0.25, 0x4488ff, () => {
+  if (selected) selected.material.color.set(0x4488ff);
+});
 
-// 🔒 LOCK BUTTON
-makeBtn(0.0, 0xffff00, () => {
-    locked = !locked;
-}, "lock");
+// lock
+makeBtn(0, 0xffff00, () => {
+  locked = !locked;
+});
 
 // =====================
-// ATTACH UI TO MODEL
+// ATTACH UI
 // =====================
 function attachUI() {
 
-    if (!model) return;
+  if (!model) return;
 
-    const box = new THREE.Box3().setFromObject(model);
-    const center = box.getCenter(new THREE.Vector3());
+  const box = new THREE.Box3().setFromObject(model);
+  const center = box.getCenter(new THREE.Vector3());
 
-    ui.position.copy(center);
-    ui.position.y += 0.6;
+  ui.position.copy(center);
+  ui.position.y += 0.6;
 }
 
 // =====================
-// PICK SYSTEM
+// PICK MODEL
 // =====================
-const raycaster = new THREE.Raycaster();
-const tempMatrix = new THREE.Matrix4();
-
-let selected = null;
-
 function pick(controller) {
 
-    if (!model) return;
+  if (!model) return;
 
-    tempMatrix.identity().extractRotation(controller.matrixWorld);
+  tempMatrix.identity().extractRotation(controller.matrixWorld);
 
-    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
+  raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+  raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
-    const hits = raycaster.intersectObject(model, true);
+  const hits = raycaster.intersectObject(model, true);
 
-    if (hits.length > 0) selected = hits[0].object;
+  if (hits.length > 0) {
+    selected = hits[0].object;
+  }
 }
 
 // =====================
-// CLICK UI
+// CLICK UI OR MODEL
 // =====================
 function click(controller) {
 
-    tempMatrix.identity().extractRotation(controller.matrixWorld);
+  tempMatrix.identity().extractRotation(controller.matrixWorld);
 
-    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
+  raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+  raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
 
-    const hits = raycaster.intersectObjects(buttons);
+  const hits = raycaster.intersectObjects(buttons);
 
-    if (hits.length > 0) {
-        hits[0].object.userData.fn?.();
-    } else {
-        pick(controller);
-    }
+  if (hits.length > 0) {
+
+    hits[0].object.userData.fn?.();
+
+  } else {
+
+    pick(controller);
+  }
 }
 
+// =====================
+// CONTROLS
+// =====================
 right.addEventListener("select", () => click(right));
+
 left.addEventListener("select", () => click(left));
+
+right.addEventListener("selectstart", () => move = true);
+right.addEventListener("selectend", () => move = false);
+
+left.addEventListener("selectstart", () => rotate = true);
+left.addEventListener("selectend", () => rotate = false);
+
+// =====================
+// UPDATE MOVE
+// =====================
+function updateMove() {
+
+  if (!model || locked) return;
+
+  const p = new THREE.Vector3().setFromMatrixPosition(right.matrixWorld);
+
+  model.position.lerp(p, 0.2);
+}
+
+// =====================
+// UPDATE ROTATE
+// =====================
+const last = new THREE.Vector3();
+
+function updateRotate() {
+
+  if (!model || locked) return;
+
+  const p = new THREE.Vector3().setFromMatrixPosition(left.matrixWorld);
+
+  const dx = p.x - last.x;
+
+  model.rotation.y += dx * 2.0;
+
+  last.copy(p);
+}
+
+// =====================
+// ZOOM ONLY IF BOTH POINT MODEL + CLOSE HANDS
+// =====================
+function updateZoom() {
+
+  if (!model || locked) return;
+
+  const hitsR = updateLaser(right, laserR, hitR);
+  const hitsL = updateLaser(left, laserL, hitL);
+
+  const bothOnModel =
+    hitsR.length > 0 &&
+    hitsL.length > 0;
+
+  const handsClose = dist(right, left) < 0.15;
+
+  if (!bothOnModel || !handsClose) {
+    baseDistance = null;
+    return;
+  }
+
+  const d = dist(right, left);
+
+  if (baseDistance === null) {
+    baseDistance = d;
+    baseScale = model.scale.x;
+    return;
+  }
+
+  model.scale.setScalar(baseScale * (d / baseDistance));
+}
 
 // =====================
 // LOOP
 // =====================
 renderer.setAnimationLoop(() => {
 
-    updateCursors();
+  updateLaser(right, laserR, hitR);
+  updateLaser(left, laserL, hitL);
 
-    if (!locked) {
-        if (move) updateMove();
-        if (rotate) updateRotate();
-        updateZoom();
-    }
+  if (!locked) {
 
-    attachUI();
+    if (move) updateMove();
+    if (rotate) updateRotate();
 
-    renderer.render(scene, camera);
+    updateZoom();
+  }
+
+  attachUI();
+
+  renderer.render(scene, camera);
 });
 
 </script>
