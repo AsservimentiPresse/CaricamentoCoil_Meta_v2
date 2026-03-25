@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>XR Industrial Hand Tracking</title>
+<title>XR Stable Quest 3</title>
 
 <style>
 body { margin:0; overflow:hidden; background:#000; }
@@ -13,246 +13,88 @@ body { margin:0; overflow:hidden; background:#000; }
 
 <script type="module">
 
-// ==========================
-// IMPORT CORRETTI (NO ERRORI)
-// ==========================
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js";
 import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/webxr/ARButton.js";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/loaders/GLTFLoader.js";
 
-// ==========================
-// SCENA BASE
-// ==========================
+// =====================
+// SCENE
+// =====================
 const scene = new THREE.Scene();
 
-const camera = new THREE.PerspectiveCamera(
-  70,
-  window.innerWidth / window.innerHeight,
-  0.01,
-  100
-);
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 50);
 
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(innerWidth, innerHeight);
 renderer.xr.enabled = true;
 
 document.body.appendChild(renderer.domElement);
 
-// XR BUTTON (hand tracking enabled)
+// ✅ AR BUTTON (STABILE)
 document.body.appendChild(
-  ARButton.createButton(renderer, {
-    requiredFeatures: ["hand-tracking"]
-  })
+  ARButton.createButton(renderer)
 );
 
-// ==========================
-// LUCI (ANTI BLACK SCREEN)
-// ==========================
+// =====================
+// LIGHT (NO BLACK SCREEN)
+// =====================
 scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
 
 const light = new THREE.DirectionalLight(0xffffff, 2);
-light.position.set(5,5,5);
+light.position.set(3,5,2);
 scene.add(light);
 
-// ==========================
-// MODELLO GLB
-// ==========================
+// =====================
+// MODEL
+// =====================
 let model;
 
-const loader = new GLTFLoader();
-
-loader.load("linea%20lunga_V4.glb", (gltf)=>{
+new GLTFLoader().load("linea%20lunga_V4.glb", (gltf)=>{
 
   model = gltf.scene;
   scene.add(model);
 
-  model.position.set(0,0,-0.8);
+  model.position.set(0,0,-1);
   model.scale.set(1,1,1);
 
-}, undefined, (err)=>{
-  console.error("GLB ERROR:", err);
 });
 
-// ==========================
-// HANDS
-// ==========================
-const handL = renderer.xr.getHand(0);
-const handR = renderer.xr.getHand(1);
+// =====================
+// XR INPUT (SAFE MODE)
+// =====================
+const controller1 = renderer.xr.getController(0);
+const controller2 = renderer.xr.getController(1);
 
-scene.add(handL);
-scene.add(handR);
+scene.add(controller1);
+scene.add(controller2);
 
-// ==========================
-// PINCH DETECTION
-// ==========================
-function isPinching(hand){
+// =====================
+// SIMPLE INTERACTION TEST
+// =====================
+let dragging = false;
 
-  const index = hand.joints["index-finger-tip"];
-  const thumb = hand.joints["thumb-tip"];
+controller1.addEventListener("selectstart", ()=> dragging = true);
+controller1.addEventListener("selectend", ()=> dragging = false);
 
-  if(!index || !thumb) return false;
+// =====================
+// MOVE MODEL (SAFE TEST)
+// =====================
+function move(){
 
-  return index.position.distanceTo(thumb.position) < 0.03;
+  if(!model || !dragging) return;
+
+  const p = new THREE.Vector3();
+  controller1.getWorldPosition(p);
+
+  model.position.lerp(p, 0.2);
 }
 
-// ==========================
-// PALM TOWARD CAMERA (APPROX)
-// ==========================
-function palmForward(hand){
-
-  const wrist = hand.joints["wrist"];
-  if(!wrist) return false;
-
-  const v = new THREE.Vector3();
-  v.setFromMatrixPosition(wrist.matrixWorld);
-
-  return v.z < 0.2;
-}
-
-// ==========================
-// MENU 3D
-// ==========================
-const menu = new THREE.Group();
-scene.add(menu);
-menu.visible = false;
-
-function makeBtn(text,x,y,color){
-
-  const mesh = new THREE.Mesh(
-    new THREE.CircleGeometry(0.05, 32),
-    new THREE.MeshStandardMaterial({
-      color,
-      emissive: color,
-      emissiveIntensity: 0.4
-    })
-  );
-
-  mesh.position.set(x,y,0);
-  mesh.userData.action = text;
-
-  menu.add(mesh);
-
-  return mesh;
-}
-
-const btnMove  = makeBtn("MOVE",-0.1, 0.1, 0x00ff00);
-const btnRot   = makeBtn("ROT", 0.1, 0.1, 0xffaa00);
-const btnScale = makeBtn("SCALE",-0.1,-0.1,0x00aaff);
-const btnColor = makeBtn("COLOR", 0.1,-0.1,0xff00ff);
-const btnLock  = makeBtn("LOCK", 0,0,0xff0000);
-
-// ==========================
-// STATE
-// ==========================
-let mode = "MOVE";
-let locked = false;
-
-// ==========================
-// RAYCAST MENU
-// ==========================
-const raycaster = new THREE.Raycaster();
-
-function menuPick(){
-
-  const origin = new THREE.Vector3().setFromMatrixPosition(handR.matrixWorld);
-  const dir = new THREE.Vector3(0,0,-1).applyMatrix4(handR.matrixWorld);
-
-  raycaster.set(origin, dir);
-
-  const hits = raycaster.intersectObjects(menu.children);
-
-  if(hits.length){
-
-    const a = hits[0].object.userData.action;
-
-    mode = a;
-
-    if(a === "LOCK"){
-      locked = !locked;
-    }
-  }
-}
-
-// ==========================
-// MENU POSITION
-// ==========================
-function updateMenu(){
-
-  const p = new THREE.Vector3().setFromMatrixPosition(handL.matrixWorld);
-  menu.position.copy(p);
-}
-
-// ==========================
-// MODEL CONTROL
-// ==========================
-function updateModel(){
-
-  if(!model || locked) return;
-
-  const pos = new THREE.Vector3().setFromMatrixPosition(handR.matrixWorld);
-
-  if(mode === "MOVE"){
-    model.position.lerp(pos, 0.2);
-  }
-
-  if(mode === "COLOR"){
-    model.traverse(o=>{
-      if(o.isMesh){
-        o.material.color.setHSL(Math.random(),1,0.5);
-      }
-    });
-  }
-}
-
-// ROTATE
-let lastL = new THREE.Vector3();
-
-function rotateModel(){
-
-  if(!model || locked || mode !== "ROT") return;
-
-  const p = new THREE.Vector3().setFromMatrixPosition(handL.matrixWorld);
-
-  model.rotation.y += (p.x - lastL.x) * 3;
-
-  lastL.copy(p);
-}
-
-// SCALE (two hands distance)
-function scaleModel(){
-
-  if(!model || locked || mode !== "SCALE") return;
-
-  const a = new THREE.Vector3().setFromMatrixPosition(handL.matrixWorld);
-  const b = new THREE.Vector3().setFromMatrixPosition(handR.matrixWorld);
-
-  const d = a.distanceTo(b);
-
-  model.scale.setScalar(d * 2);
-}
-
-// ==========================
-// MAIN LOOP
-// ==========================
+// =====================
+// LOOP
+// =====================
 renderer.setAnimationLoop(()=>{
 
-  const pinchL = isPinching(handL);
-
-  // OPEN MENU
-  if(pinchL && palmForward(handL)){
-    menu.visible = true;
-  } else {
-    menu.visible = false;
-  }
-
-  if(menu.visible){
-    updateMenu();
-    menuPick();
-  }
-
-  updateModel();
-  rotateModel();
-  scaleModel();
+  move();
 
   renderer.render(scene,camera);
 });
