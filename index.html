@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR Industrial Full Corrected</title>
+<title>MR Industrial Full System</title>
 
 <style>
 body { margin:0; overflow:hidden; }
@@ -23,18 +23,9 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/js
 const scene = new THREE.Scene();
 scene.background = null;
 
-const camera = new THREE.PerspectiveCamera(
-    70,
-    window.innerWidth / window.innerHeight,
-    0.01,
-    40
-);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 40);
 
-const renderer = new THREE.WebGLRenderer({
-    antialias: true,
-    alpha: true
-});
-
+const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType("local");
@@ -45,16 +36,12 @@ document.body.appendChild(ARButton.createButton(renderer, {
 }));
 
 // =====================
-// LUCI
+// LIGHT
 // =====================
 scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 2);
-dirLight.position.set(5, 10, 5);
-scene.add(dirLight);
-
 // =====================
-// MODELLO
+// MODEL
 // =====================
 let model;
 
@@ -70,163 +57,168 @@ loader.load("linea%20lunga_V4.glb", (gltf) => {
     model.position.sub(center);
 
     const size = box.getSize(new THREE.Vector3()).length();
-    model.scale.setScalar(1.5 / size);
+    model.scale.setScalar(1.2 / size);
 
     model.position.set(0, 0, -1);
+
 });
+
+// =====================
+// HIT TEST (floor anchor)
+// =====================
+let hitTestSource = null;
+let hitTestSourceRequested = false;
+let reticle;
+
+reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.1, 0.12, 32),
+    new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+);
+reticle.rotation.x = -Math.PI / 2;
+reticle.visible = false;
+scene.add(reticle);
 
 // =====================
 // CONTROLLERS
 // =====================
-const controller0 = renderer.xr.getController(0); // mano destra
-const controller1 = renderer.xr.getController(1); // mano sinistra
+const controller = renderer.xr.getController(0);
+scene.add(controller);
 
-scene.add(controller0);
-scene.add(controller1);
+// ray visual
+const rayGeo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0),
+    new THREE.Vector3(0,0,-1)
+]);
 
-// laser visivi
-function addRay(controller, color) {
-
-    const geo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0, 0, -1)
-    ]);
-
-    const line = new THREE.Line(
-        geo,
-        new THREE.LineBasicMaterial({ color })
-    );
-
-    controller.add(line);
-}
-
-addRay(controller0, 0xff0000);
-addRay(controller1, 0x00ff00);
+const rayLine = new THREE.Line(rayGeo, new THREE.LineBasicMaterial({ color: 0xff0000 }));
+controller.add(rayLine);
 
 // =====================
-// INPUT STATE
+// INTERACTION
 // =====================
-let draggingMove = false;
-let rotating = false;
-let pinchActive = false;
-
-let baseDistance = null;
-let baseScale = 1;
-
 const raycaster = new THREE.Raycaster();
 const tempMatrix = new THREE.Matrix4();
 
-// =====================
-// EVENTI CONTROLLER
-// =====================
-
-// MOVE + PINCH ATTIVO
-controller0.addEventListener("selectstart", () => {
-    draggingMove = true;
-    pinchActive = true;
-});
-
-controller0.addEventListener("selectend", () => {
-    draggingMove = false;
-    pinchActive = false;
-    baseDistance = null;
-});
-
-// ROTATE + PINCH ATTIVO
-controller1.addEventListener("selectstart", () => {
-    rotating = true;
-    pinchActive = true;
-});
-
-controller1.addEventListener("selectend", () => {
-    rotating = false;
-    pinchActive = false;
-    baseDistance = null;
-});
+let selected = null;
 
 // =====================
-// UTIL DISTANZA MANI
+// UI 3D (ORBITAL)
 // =====================
-function getDistance(c1, c2) {
+const uiGroup = new THREE.Group();
+scene.add(uiGroup);
 
-    const p1 = new THREE.Vector3();
-    const p2 = new THREE.Vector3();
+function createButton(label, x, color, callback) {
 
-    p1.setFromMatrixPosition(c1.matrixWorld);
-    p2.setFromMatrixPosition(c2.matrixWorld);
+    const geo = new THREE.BoxGeometry(0.1,0.05,0.02);
+    const mat = new THREE.MeshStandardMaterial({ color });
 
-    return p1.distanceTo(p2);
+    const btn = new THREE.Mesh(geo, mat);
+    btn.position.set(x, 1.2, -0.8);
+
+    btn.userData.onClick = callback;
+
+    uiGroup.add(btn);
+    return btn;
 }
 
+// UI buttons
+createButton("RED", -0.2, 0xff0000, () => {
+    if (selected) selected.material.color.set(0xff0000);
+});
+
+createButton("GREEN", 0, 0x00ff00, () => {
+    if (selected) selected.material.color.set(0x00ff00);
+});
+
+createButton("BLUE", 0.2, 0x0000ff, () => {
+    if (selected) selected.material.color.set(0x0000ff);
+});
+
 // =====================
-// MOVE
+// HAND / CONTROLLER INPUT (fallback)
 // =====================
-function updateMove(controller) {
+let dragging = false;
+
+controller.addEventListener("selectstart", () => dragging = true);
+controller.addEventListener("selectend", () => dragging = false);
+
+// =====================
+// RAYCAST PICKING (mesh selection)
+// =====================
+function pick() {
 
     if (!model) return;
 
     tempMatrix.identity().extractRotation(controller.matrixWorld);
 
     raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+    raycaster.ray.direction.set(0,0,-1).applyMatrix4(tempMatrix);
 
-    const target = new THREE.Vector3();
-    raycaster.ray.at(1.5, target);
+    const hits = raycaster.intersectObject(model, true);
 
-    model.position.lerp(target, 0.25);
+    if (hits.length > 0) {
+        selected = hits[0].object;
+    }
 }
 
 // =====================
-// ROTATE
+// MOVE MODEL
 // =====================
-const lastPos = new THREE.Vector3();
-
-function updateRotate(controller) {
+function moveModel() {
 
     if (!model) return;
 
-    const current = new THREE.Vector3();
-    current.setFromMatrixPosition(controller.matrixWorld);
+    const pos = new THREE.Vector3();
+    pos.setFromMatrixPosition(controller.matrixWorld);
 
-    const deltaX = current.x - lastPos.x;
-
-    model.rotation.y += deltaX * 2.0;
-
-    lastPos.copy(current);
+    model.position.lerp(pos, 0.2);
 }
 
 // =====================
-// PINCH SCALE (FIXED)
+// UPDATE LOOP
 // =====================
-function updatePinch() {
+renderer.setAnimationLoop((timestamp, frame) => {
 
-    if (!model || !pinchActive) {
-        baseDistance = null;
-        return;
+    // HIT TEST FLOOR
+    const session = renderer.xr.getSession();
+
+    if (session && !hitTestSourceRequested) {
+
+        session.requestReferenceSpace("viewer").then((refSpace) => {
+            session.requestHitTestSource({ space: refSpace }).then((source) => {
+                hitTestSource = source;
+            });
+        });
+
+        hitTestSourceRequested = true;
     }
 
-    const d = getDistance(controller0, controller1);
+    if (hitTestSource && frame) {
 
-    if (baseDistance === null) {
-        baseDistance = d;
-        baseScale = model.scale.x;
-        return;
+        const refSpace = renderer.xr.getReferenceSpace();
+        const hitResults = frame.getHitTestResults(hitTestSource);
+
+        if (hitResults.length > 0) {
+
+            const hit = hitResults[0];
+            const pose = hit.getPose(refSpace);
+
+            reticle.visible = true;
+            reticle.position.set(
+                pose.transform.position.x,
+                pose.transform.position.y,
+                pose.transform.position.z
+            );
+        }
     }
 
-    const scaleFactor = d / baseDistance;
+    // INTERACTION
+    if (dragging) {
+        moveModel();
+    }
 
-    model.scale.setScalar(baseScale * scaleFactor);
-}
-
-// =====================
-// LOOP
-// =====================
-renderer.setAnimationLoop(() => {
-
-    if (draggingMove) updateMove(controller0);
-    if (rotating) updateRotate(controller1);
-
-    updatePinch();
+    // PICK on tap
+    controller.addEventListener("select", pick);
 
     renderer.render(scene, camera);
 });
