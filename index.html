@@ -104,7 +104,7 @@ addRay(controller0, 0xff0000);
 addRay(controller1, 0x00ff00);
 
 // =====================
-// INPUT STATE (NON MODIFICATO)
+// INPUT STATE
 // =====================
 let draggingMove = false;
 let rotating = false;
@@ -116,8 +116,10 @@ let baseScale = 1;
 const raycaster = new THREE.Raycaster();
 const tempMatrix = new THREE.Matrix4();
 
+let uiHovered = false;
+
 // =====================
-// CONTROLLER EVENTS (NON MODIFICATI)
+// CONTROLLER EVENTS
 // =====================
 controller0.addEventListener("selectstart", () => {
     draggingMove = true;
@@ -144,11 +146,13 @@ controller1.addEventListener("selectend", () => {
 });
 
 // =====================
-// MOVE
+// MOVE (BLOCK IF UI)
 // =====================
 function updateMove(controller) {
 
     if (!model) return;
+
+    if (uiHovered) return;
 
     tempMatrix.identity().extractRotation(controller.matrixWorld);
 
@@ -204,7 +208,7 @@ function updatePinch() {
 }
 
 // =====================
-// 🎨 5 COLOR BUTTONS (FIXED XR)
+// 🎨 5 COLOR BUTTONS
 // =====================
 const buttons = [];
 const colors = [
@@ -215,7 +219,6 @@ const colors = [
     0xff00ff
 ];
 
-// POSIZIONE: PIÙ VICINI E PIÙ BASSI (FACILI DA COLPIRE)
 for (let i = 0; i < colors.length; i++) {
 
     const mesh = new THREE.Mesh(
@@ -235,7 +238,7 @@ for (let i = 0; i < colors.length; i++) {
 }
 
 // =====================
-// COLOR PICK XR (CORRETTO)
+// COLOR PICK
 // =====================
 function updateColorPick() {
 
@@ -248,13 +251,16 @@ function updateColorPick() {
 
     const hit = raycaster.intersectObjects(buttons);
 
-    // reset glow
+    uiHovered = false;
+
     buttons.forEach(b => b.material.emissiveIntensity = 0.4);
 
     if (hit.length) {
 
         const obj = hit[0].object;
         obj.material.emissiveIntensity = 1.2;
+
+        uiHovered = true;
 
         if (controller0.userData.isSelecting) {
 
