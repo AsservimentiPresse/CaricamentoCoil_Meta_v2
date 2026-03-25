@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR Highlight UI</title>
+<title>MR Full Final DRACO</title>
 
 <style>
 body { margin:0; overflow:hidden; }
@@ -16,8 +16,11 @@ body { margin:0; overflow:hidden; }
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.125/build/three.module.js";
 import { ARButton } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/webxr/ARButton.js";
 import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/loaders/GLTFLoader.js";
+import { DRACOLoader } from "https://cdn.jsdelivr.net/npm/three@0.125/examples/jsm/loaders/DRACOLoader.js";
 
+// =====================
 // SCENE
+// =====================
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.01, 40);
@@ -32,12 +35,22 @@ document.body.appendChild(ARButton.createButton(renderer,{ requiredFeatures:["hi
 scene.add(new THREE.HemisphereLight(0xffffff,0x444444,2));
 scene.add(new THREE.DirectionalLight(0xffffff,2));
 
-// MODEL
-let model;
-
+// =====================
+// LOADER + DRACO
+// =====================
 const loader = new GLTFLoader();
 
-loader.load("mahle.glb",(gltf)=>{
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.125/examples/js/libs/draco/");
+
+loader.setDRACOLoader(dracoLoader);
+
+// =====================
+// MODEL
+// =====================
+let model;
+
+loader.load("TUO_MODELLO.glb",(gltf)=>{
 
     model=gltf.scene;
     scene.add(model);
@@ -49,14 +62,18 @@ loader.load("mahle.glb",(gltf)=>{
     model.position.set(0,0,-1);
 });
 
+// =====================
 // CONTROLLERS
+// =====================
 const left = renderer.xr.getController(0);
 const right = renderer.xr.getController(1);
 
 scene.add(left);
 scene.add(right);
 
+// =====================
 // LASER
+// =====================
 function makeLaser(color){
     const geo=new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(0,0,0),
@@ -70,11 +87,15 @@ function makeLaser(color){
 left.add(makeLaser(0x00ff00));
 right.add(makeLaser(0xff0000));
 
+// =====================
 // MODE
+// =====================
 let mode="move";
 let frozen=false;
 
+// =====================
 // UI
+// =====================
 const raycaster=new THREE.Raycaster();
 const tempMatrix=new THREE.Matrix4();
 
@@ -131,11 +152,15 @@ for(let i=0;i<modes.length;i++){
     ui.push(group);
 }
 
-// INPUT
+// =====================
+// INPUT SINISTRA
+// =====================
 left.addEventListener("selectstart",()=>left.userData.click=true);
 left.addEventListener("selectend",()=>left.userData.click=false);
 
-// HIGHLIGHT SYSTEM
+// =====================
+// UI UPDATE + HIGHLIGHT
+// =====================
 function updateUI(){
 
     tempMatrix.identity().extractRotation(left.matrixWorld);
@@ -145,7 +170,7 @@ function updateUI(){
 
     const hits=raycaster.intersectObjects(ui,true);
 
-    // RESET
+    // reset
     ui.forEach(b=>{
         const mesh = b.children[0];
         mesh.material.color.set(b.userData.baseColor);
@@ -155,13 +180,12 @@ function updateUI(){
     if(hits.length){
 
         const root=hits[0].object.parent;
-        const mesh = root.children[0];
+        const mesh=root.children[0];
 
-        // 🔥 HIGHLIGHT
+        // highlight
         mesh.material.emissive.set(0x222222);
         mesh.material.color.offsetHSL(0,0,0.2);
 
-        // CLICK
         if(left.userData.click){
 
             if(root.userData.mode==="lock"){
@@ -173,7 +197,9 @@ function updateUI(){
     }
 }
 
-// TRUE GRAB MOVE
+// =====================
+// TRUE GRAB (NO SCATTI)
+// =====================
 let grabbing=false;
 
 right.addEventListener("selectstart",()=>{
@@ -183,6 +209,8 @@ right.addEventListener("selectstart",()=>{
     if(mode==="move"){
         grabbing=true;
         right.attach(model);
+    } else {
+        grabbing=true;
     }
 });
 
@@ -194,21 +222,25 @@ right.addEventListener("selectend",()=>{
     scene.attach(model);
 });
 
-// OTHER MODES
+// =====================
+// ALTRE MODALITÀ
+// =====================
 function updateOther(){
 
-    if(!model || frozen) return;
+    if(!model || frozen || !grabbing) return;
 
-    if(mode==="rotate" && grabbing){
+    if(mode==="rotate"){
         model.rotation.y += 0.03;
     }
 
-    if(mode==="zoom" && grabbing){
+    if(mode==="zoom"){
         model.scale.multiplyScalar(1.01);
     }
 }
 
+// =====================
 // LOOP
+// =====================
 renderer.setAnimationLoop(()=>{
 
     updateUI();
