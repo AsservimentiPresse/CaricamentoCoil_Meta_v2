@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR Continuous Pinch System</title>
+<title>MR Event Based Pinch System</title>
 
 <style>
 body { margin:0; overflow:hidden; }
@@ -56,14 +56,14 @@ loader.load("linea%20lunga_V4.glb",(gltf)=>{
 // =====================
 // CONTROLLERS
 // =====================
-const controller0 = renderer.xr.getController(0); // sinistra UI
-const controller1 = renderer.xr.getController(1); // destra interaction
+const controller0 = renderer.xr.getController(0); // sinistra (UI)
+const controller1 = renderer.xr.getController(1); // destra (interaction)
 
 scene.add(controller0);
 scene.add(controller1);
 
 // =====================
-// LASER
+// LASER VISUAL
 // =====================
 function makeLaser(color){
 
@@ -85,13 +85,13 @@ controller0.add(makeLaser(0x00ff00));
 controller1.add(makeLaser(0xff0000));
 
 // =====================
-// MODE SYSTEM
+// MODE SYSTEM (LEFT HAND)
 // =====================
 let mode="move";
 let frozen=false;
 
 // =====================
-// UI SINISTRA
+// UI (LEFT HAND)
 // =====================
 const raycaster=new THREE.Raycaster();
 const tempMatrix=new THREE.Matrix4();
@@ -114,6 +114,7 @@ for(let i=0;i<modes.length;i++){
     ui.push(m);
 }
 
+// select UI
 controller0.addEventListener("selectstart",()=>controller0.userData.select=true);
 controller0.addEventListener("selectend",()=>controller0.userData.select=false);
 
@@ -134,7 +135,6 @@ function updateUI(){
         obj.material.color.set(0x00ffcc);
 
         if(controller0.userData.select){
-
             if(obj.userData.mode==="lock"){
                 frozen=!frozen;
             } else {
@@ -145,63 +145,59 @@ function updateUI(){
 }
 
 // =====================
-// PINCH CONTINUO (DESTRA)
+// RIGHT HAND RAYCAST TARGET
 // =====================
-let isPinching=false;
+const raycasterR=new THREE.Raycaster();
+const tempMatrixR=new THREE.Matrix4();
+
+let hoverPoint=new THREE.Vector3();
+
+// =====================
+// PINCH STATE (EVENT BASED)
+// =====================
+let pinch=false;
 
 controller1.addEventListener("selectstart",()=>{
 
     if(frozen) return;
 
-    isPinching=true;
-});
-
-controller1.addEventListener("selectend",()=>{
-
-    isPinching=false;
-});
-
-// =====================
-// RAYCAST DESTRA
-// =====================
-const raycasterR=new THREE.Raycaster();
-const tempMatrixR=new THREE.Matrix4();
-
-// =====================
-// ACTION CONTINUA
-// =====================
-const lastPos=new THREE.Vector3();
-
-function updateAction(){
-
-    if(!model || !isPinching || frozen) return;
-
-    tempMatrixR.identity().extractRotation(controller1.matrixWorld);
+    pinch=true;
 
     raycasterR.ray.origin.setFromMatrixPosition(controller1.matrixWorld);
+    tempMatrixR.identity().extractRotation(controller1.matrixWorld);
     raycasterR.ray.direction.set(0,0,-1).applyMatrix4(tempMatrixR);
 
     const hit=raycasterR.intersectObject(model,true);
 
-    if(!hit.length) return;
+    if(hit.length){
+        hoverPoint.copy(hit[0].point);
 
-    const point=hit[0].point;
+        applyAction();
+    }
+});
+
+controller1.addEventListener("selectend",()=>{
+
+    pinch=false;
+});
+
+// =====================
+// ACTION EXECUTION (ONE SHOT PER PINCH)
+// =====================
+function applyAction(){
+
+    if(!model || frozen) return;
 
     if(mode==="move"){
-
-        model.position.lerp(point,0.2);
+        model.position.lerp(new THREE.Vector3(hoverPoint.x,hoverPoint.y,hoverPoint.z),0.5);
     }
 
     if(mode==="rotate"){
-
-        const p=new THREE.Vector3().setFromMatrixPosition(controller1.matrixWorld);
-        model.rotation.y += (p.x - lastPos.x)*2;
-        lastPos.copy(p);
+        model.rotation.y += 0.5;
     }
 
     if(mode==="zoom"){
-
-        model.scale.multiplyScalar(1.01);
+        model.scale.multiplyScalar(1.05);
     }
 }
 
@@ -211,7 +207,6 @@ function updateAction(){
 renderer.setAnimationLoop(()=>{
 
     updateUI();
-    updateAction();
 
     renderer.render(scene,camera);
 });
