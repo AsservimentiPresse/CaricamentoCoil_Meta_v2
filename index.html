@@ -1,13 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-<style>body{margin:0}</style>
+<style>
+body { margin:0; overflow:hidden; }
+
+/* UI PULSANTI */
+#ui {
+  position:absolute;
+  top:10px;
+  left:10px;
+  display:flex;
+  gap:10px;
+  z-index:10;
+}
+
+.btn {
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  cursor:pointer;
+  border:2px solid white;
+}
+</style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r125/three.min.js"></script>
 <script src="GLTFLoader.js"></script>
-
 </head>
+
 <body>
+
+<!-- ================= UI COLORI ================= -->
+<div id="ui">
+  <div class="btn" style="background:#ff0000" data-color="0xff0000"></div>
+  <div class="btn" style="background:#00ff00" data-color="0x00ff00"></div>
+  <div class="btn" style="background:#0000ff" data-color="0x0000ff"></div>
+  <div class="btn" style="background:#ffff00" data-color="0xffff00"></div>
+  <div class="btn" style="background:#ff00ff" data-color="0xff00ff"></div>
+</div>
 
 <script>
 
@@ -23,12 +52,12 @@ const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// LUCE FORTE
+// LUCE
 const light = new THREE.DirectionalLight(0xffffff, 2);
 light.position.set(5,10,5);
 scene.add(light);
 
-// CUBO TEST (DEVE VEDERSI SEMPRE)
+// CUBO TEST
 const cube = new THREE.Mesh(
     new THREE.BoxGeometry(),
     new THREE.MeshBasicMaterial({color:0xff0000})
@@ -36,45 +65,63 @@ const cube = new THREE.Mesh(
 cube.position.set(-2,0,0);
 scene.add(cube);
 
+// ================= MODELLO =================
+let model = null;
+
 const loader = new THREE.GLTFLoader();
 
-console.log("PROVO A CARICARE IL MODELLO");
-
 loader.load("linea%20lunga_V4.glb",
-
 function(gltf){
 
-console.log("MODEL LOADED");
+  const box = new THREE.Box3().setFromObject(gltf.scene);
+  const center = box.getCenter(new THREE.Vector3());
+  gltf.scene.position.sub(center);
 
-// CENTRA IL MODELLO
-const box = new THREE.Box3().setFromObject(gltf.scene);
-const center = box.getCenter(new THREE.Vector3());
-gltf.scene.position.sub(center);
+  const size = box.getSize(new THREE.Vector3()).length();
+  const scale = 5 / size;
+  gltf.scene.scale.setScalar(scale);
 
-// SCALA AUTOMATICA
-const size = box.getSize(new THREE.Vector3()).length();
-const scale = 5 / size;
-gltf.scene.scale.setScalar(scale);
-
-scene.add(gltf.scene);
+  scene.add(gltf.scene);
+  model = gltf.scene;
 
 },
-
 undefined,
-
 function(error){
-console.error("MODEL ERROR:", error);
+  console.error(error);
+});
+
+// ================= COLOR CHANGE =================
+function setColor(hex){
+
+  if(!model) return;
+
+  model.traverse((o)=>{
+    if(o.isMesh){
+      o.material.color.setHex(hex);
+    }
+  });
 }
 
-);
+// ================= UI EVENTS =================
+document.querySelectorAll(".btn").forEach(btn=>{
 
+  btn.addEventListener("click",()=>{
+
+    const color = parseInt(btn.dataset.color);
+    setColor(color);
+
+  });
+
+});
+
+// ================= ANIMATION =================
 function animate(){
 
-requestAnimationFrame(animate);
+  requestAnimationFrame(animate);
 
-cube.rotation.y += 0.01;
+  cube.rotation.y += 0.01;
 
-renderer.render(scene, camera);
+  renderer.render(scene, camera);
 
 }
 
