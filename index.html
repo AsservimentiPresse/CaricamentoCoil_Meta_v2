@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>XR STEP 2</title>
+<title>XR STEP 3</title>
 
 <style>
 body { margin: 0; overflow: hidden; background: black; }
@@ -33,7 +33,7 @@ document.body.appendChild(VRButton.createButton(renderer));
 // LUCE
 scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 2));
 
-// CUBO BASE
+// CUBO
 const cube = new THREE.Mesh(
     new THREE.BoxGeometry(0.3,0.3,0.3),
     new THREE.MeshStandardMaterial({ color: 0x00ff00 })
@@ -41,14 +41,14 @@ const cube = new THREE.Mesh(
 cube.position.set(0, 1.5, -1);
 scene.add(cube);
 
-// 🎮 CONTROLLER XR (NUOVO)
+// 🎮 CONTROLLER
 const controller1 = renderer.xr.getController(0);
 const controller2 = renderer.xr.getController(1);
 
 scene.add(controller1);
 scene.add(controller2);
 
-// 🔴 LASER VISIVO (controller 1)
+// 🔴 LASER
 function addLaser(controller) {
 
     const geometry = new THREE.BufferGeometry().setFromPoints([
@@ -66,6 +66,30 @@ function addLaser(controller) {
 
 addLaser(controller1);
 addLaser(controller2);
+
+// 🎯 RAYCAST SETUP
+const raycaster = new THREE.Raycaster();
+const tempMatrix = new THREE.Matrix4();
+
+function handleSelect(controller) {
+
+    tempMatrix.identity().extractRotation(controller.matrixWorld);
+
+    raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+    raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+    const intersects = raycaster.intersectObjects([cube]);
+
+    if (intersects.length > 0) {
+
+        // 🔥 INTERAZIONE: cambia colore
+        cube.material.color.set(Math.random() * 0xffffff);
+    }
+}
+
+// 🎮 EVENTI TRIGGER
+controller1.addEventListener("selectstart", () => handleSelect(controller1));
+controller2.addEventListener("selectstart", () => handleSelect(controller2));
 
 // LOOP
 renderer.setAnimationLoop(() => {
