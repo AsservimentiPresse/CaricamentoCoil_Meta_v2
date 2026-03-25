@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR Full Fixed Modes + UI Restore</title>
+<title>MR Stable Full System FIX</title>
 
 <style>
 body { margin:0; overflow:hidden; }
@@ -63,19 +63,61 @@ scene.add(controller0);
 scene.add(controller1);
 
 // =====================
-// MODE SYSTEM (RESTORED)
+// 🔦 LASERS + CURSORS (FIXED)
 // =====================
-let mode="move";
-let locked=false;
+function makeLaser(color){
+
+    const geo=new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0,0,0),
+        new THREE.Vector3(0,0,-1)
+    ]);
+
+    const line=new THREE.Line(
+        geo,
+        new THREE.LineBasicMaterial({color})
+    );
+
+    line.scale.z=10;
+
+    return line;
+}
+
+controller0.add(makeLaser(0xff0000));
+controller1.add(makeLaser(0x00ff00));
+
+// cursori visivi reali
+function addCursor(c,color){
+
+    const m=new THREE.Mesh(
+        new THREE.SphereGeometry(0.008,8,8),
+        new THREE.MeshBasicMaterial({color})
+    );
+
+    m.position.set(0,0,-0.1);
+    c.add(m);
+}
+
+addCursor(controller0,0xff4444);
+addCursor(controller1,0x44ff44);
+
+// impact dot
+const impactDot=new THREE.Mesh(
+    new THREE.SphereGeometry(0.01,12,12),
+    new THREE.MeshBasicMaterial({color:0xffffff})
+);
+scene.add(impactDot);
 
 // =====================
-// UI RAY
+// UI MODE SYSTEM
 // =====================
 const raycaster=new THREE.Raycaster();
 const tempMatrix=new THREE.Matrix4();
 
+let mode="move";
+let frozen=false;
+
 // =====================
-// 🟢 MODE BUTTONS (MR WORLD UI)
+// MODE UI (MR)
 // =====================
 const modes=["move","rotate","zoom","lock"];
 const modeUI=[];
@@ -87,9 +129,8 @@ for(let i=0;i<modes.length;i++){
         new THREE.MeshStandardMaterial({color:0x333333})
     );
 
-    m.position.set(-0.25 + i*0.18, 1.05, -0.6);
+    m.position.set(-0.3 + i*0.18, 1.05, -0.6);
 
-    m.userData.type="mode";
     m.userData.mode=modes[i];
 
     scene.add(m);
@@ -101,25 +142,18 @@ for(let i=0;i<modes.length;i++){
 // =====================
 function setMode(m){
 
-    mode=m;
-
-    modeUI.forEach(b=>b.material.color.set(0x333333));
-
-    modeUI.forEach(b=>{
-        if(b.userData.mode===m){
-            b.material.color.set(0x00ffcc);
-        }
-    });
-
     if(m==="lock"){
-        locked=!locked;
+        frozen=!frozen;
+        return;
     }
+
+    mode=m;
 }
 
 // =====================
 // UI INTERACTION (RIGHT HAND)
 // =====================
-function updateModeUI(){
+function updateUI(){
 
     tempMatrix.identity().extractRotation(controller0.matrixWorld);
 
@@ -128,23 +162,21 @@ function updateModeUI(){
 
     const hits=raycaster.intersectObjects(modeUI);
 
+    modeUI.forEach(b=>b.material.color.set(0x333333));
+
     if(hits.length){
 
         const obj=hits[0].object;
+        obj.material.color.set(0x00ffcc);
 
-        obj.material.color.set(0x66ff66);
+        impactDot.position.copy(hits[0].point);
 
         if(controller0.userData.selecting){
             setMode(obj.userData.mode);
         }
 
     } else {
-
-        modeUI.forEach(b=>{
-            if(b.userData.mode!==mode){
-                b.material.color.set(0x333333);
-            }
-        });
+        impactDot.position.set(0,-999,0);
     }
 }
 
@@ -152,20 +184,24 @@ controller0.addEventListener("selectstart",()=>controller0.userData.selecting=tr
 controller0.addEventListener("selectend",()=>controller0.userData.selecting=false);
 
 // =====================
-// MOVE / ROTATE / ZOOM (PLACEHOLDER SAFE)
+// MOVE
 // =====================
-let baseD=null, baseS=1;
-const last=new THREE.Vector3();
-
 function move(){
-    if(!model || locked) return;
+
+    if(!model || frozen) return;
 
     const p=new THREE.Vector3().setFromMatrixPosition(controller1.matrixWorld);
     model.position.lerp(new THREE.Vector3(p.x,p.y,p.z-1),0.2);
 }
 
+// =====================
+// ROTATE
+// =====================
+const last=new THREE.Vector3();
+
 function rotate(){
-    if(!model || locked) return;
+
+    if(!model || frozen) return;
 
     const p=new THREE.Vector3().setFromMatrixPosition(controller1.matrixWorld);
 
@@ -174,9 +210,14 @@ function rotate(){
     last.copy(p);
 }
 
+// =====================
+// ZOOM
+// =====================
+let baseD=null, baseS=1;
+
 function zoom(){
 
-    if(!model || locked) return;
+    if(!model || frozen) return;
 
     const p1=new THREE.Vector3().setFromMatrixPosition(controller0.matrixWorld);
     const p2=new THREE.Vector3().setFromMatrixPosition(controller1.matrixWorld);
@@ -196,7 +237,7 @@ function zoom(){
 // =====================
 renderer.setAnimationLoop(()=>{
 
-    updateModeUI();
+    updateUI();
 
     if(mode==="move") move();
     if(mode==="rotate") rotate();
