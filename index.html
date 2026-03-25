@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR Clean Industrial v2</title>
+<title>MR Industrial Final Pro</title>
 
 <style>
 body { margin:0; overflow:hidden; }
@@ -35,13 +35,13 @@ document.body.appendChild(ARButton.createButton(renderer, {
 }));
 
 // =====================
-// LIGHT (più forte per colori vivi)
+// LIGHT (più moderno)
 // =====================
-scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 2.5));
+scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 2));
 
-const light = new THREE.DirectionalLight(0xffffff, 3);
-light.position.set(5,10,5);
-scene.add(light);
+const dir = new THREE.DirectionalLight(0xffffff, 2.5);
+dir.position.set(5,10,5);
+scene.add(dir);
 
 // =====================
 // MODEL
@@ -66,6 +66,11 @@ loader.load("linea%20lunga_V4.glb", (gltf) => {
 });
 
 // =====================
+// LOCK STATE
+// =====================
+let locked = false;
+
+// =====================
 // CONTROLLERS
 // =====================
 const right = renderer.xr.getController(0);
@@ -75,7 +80,40 @@ scene.add(right);
 scene.add(left);
 
 // =====================
-// STATE CLEAN
+// VISUAL POINTER (CURSORS FIX)
+// =====================
+function createCursor(color) {
+
+    const cursor = new THREE.Mesh(
+        new THREE.SphereGeometry(0.01, 16, 16),
+        new THREE.MeshBasicMaterial({
+            color,
+            emissive: color,
+            emissiveIntensity: 1
+        })
+    );
+
+    scene.add(cursor);
+    return cursor;
+}
+
+const cursorR = createCursor(0x00ffff);
+const cursorL = createCursor(0xff00ff);
+
+// =====================
+// UPDATE CURSORS
+// =====================
+function updateCursors() {
+
+    const rp = new THREE.Vector3().setFromMatrixPosition(right.matrixWorld);
+    const lp = new THREE.Vector3().setFromMatrixPosition(left.matrixWorld);
+
+    cursorR.position.copy(rp);
+    cursorL.position.copy(lp);
+}
+
+// =====================
+// STATE
 // =====================
 let move = false;
 let rotate = false;
@@ -84,81 +122,57 @@ let baseDistance = null;
 let baseScale = 1;
 
 // =====================
-// DISTANCE
+// DIST
 // =====================
-function dist(a, b) {
-    const p1 = new THREE.Vector3();
-    const p2 = new THREE.Vector3();
-
-    p1.setFromMatrixPosition(a.matrixWorld);
-    p2.setFromMatrixPosition(b.matrixWorld);
-
+function dist(a,b) {
+    const p1 = new THREE.Vector3().setFromMatrixPosition(a.matrixWorld);
+    const p2 = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
     return p1.distanceTo(p2);
 }
 
 // =====================
-// EVENTS CLEAN
+// MOVE / ROTATE ONLY IF NOT LOCKED
 // =====================
-
-// RIGHT = MOVE
 right.addEventListener("selectstart", () => move = true);
-right.addEventListener("selectend", () => {
-    move = false;
-    baseDistance = null;
-});
+right.addEventListener("selectend", () => move = false);
 
-// LEFT = ROTATE
 left.addEventListener("selectstart", () => rotate = true);
-left.addEventListener("selectend", () => {
-    rotate = false;
-    baseDistance = null;
-});
+left.addEventListener("selectend", () => rotate = false);
 
 // =====================
-// MODEL MOVE
+// MOVE
 // =====================
 function updateMove() {
 
-    if (!model) return;
+    if (!model || locked) return;
 
-    const p = new THREE.Vector3();
-    p.setFromMatrixPosition(right.matrixWorld);
-
-    model.position.lerp(p, 0.25);
+    const p = new THREE.Vector3().setFromMatrixPosition(right.matrixWorld);
+    model.position.lerp(p, 0.2);
 }
 
 // =====================
-// MODEL ROTATE
+// ROTATE
 // =====================
 const last = new THREE.Vector3();
 
 function updateRotate() {
 
-    if (!model) return;
+    if (!model || locked) return;
 
-    const p = new THREE.Vector3();
-    p.setFromMatrixPosition(left.matrixWorld);
+    const p = new THREE.Vector3().setFromMatrixPosition(left.matrixWorld);
 
     const dx = p.x - last.x;
-
     model.rotation.y += dx * 2.0;
 
     last.copy(p);
 }
 
 // =====================
-// PINCH ZOOM FIXED (ONLY BOTH HANDS ACTIVE)
+// ZOOM (PINCH IMPROVED)
 // =====================
 function updateZoom() {
 
-    if (!model) return;
-
-    const both = move && rotate;
-
-    if (!both) {
-        baseDistance = null;
-        return;
-    }
+    if (!model || locked) return;
 
     const d = dist(right, left);
 
@@ -172,49 +186,64 @@ function updateZoom() {
 }
 
 // =====================
-// UI ATTACHED TO MODEL (FIXED POSITION)
+// UI
 // =====================
-const uiGroup = new THREE.Group();
-scene.add(uiGroup);
+const ui = new THREE.Group();
+scene.add(ui);
 
 const buttons = [];
 
-function makeBtn(x, color, fn) {
+function makeBtn(x, color, fn, label) {
 
     const b = new THREE.Mesh(
         new THREE.BoxGeometry(0.12,0.06,0.02),
         new THREE.MeshStandardMaterial({
             color,
             emissive: color,
-            emissiveIntensity: 0.4
+            emissiveIntensity: 0.5
         })
     );
 
-    b.position.set(x, 0.6, -0.3);
+    b.position.set(x, 0.25, -0.4); // 🔥 VICINO AL GLB
     b.userData.fn = fn;
+    b.name = label;
 
-    uiGroup.add(b);
+    ui.add(b);
     buttons.push(b);
 
     return b;
 }
 
-// brighter colors (FIX)
-makeBtn(-0.2, 0xff4444, () => {
-    if (selected) selected.material.color.set(0xff4444);
-});
-makeBtn(0, 0x44ff44, () => {
-    if (selected) selected.material.color.set(0x44ff44);
-});
-makeBtn(0.2, 0x4488ff, () => {
-    if (selected) selected.material.color.set(0x4488ff);
-});
+// COLORI BRILLANTI
+makeBtn(-0.25, 0xff3b3b, () => {
+    if (selected) selected.material.color.set(0xff3b3b);
+}, "red");
 
-// attach UI to model
+makeBtn(0, 0x3bff6a, () => {
+    if (selected) selected.material.color.set(0x3bff6a);
+}, "green");
+
+makeBtn(0.25, 0x3b82ff, () => {
+    if (selected) selected.material.color.set(0x3b82ff);
+}, "blue");
+
+// 🔒 LOCK BUTTON
+makeBtn(0.0, 0xffff00, () => {
+    locked = !locked;
+}, "lock");
+
+// =====================
+// ATTACH UI TO MODEL
+// =====================
 function attachUI() {
+
     if (!model) return;
-    uiGroup.position.copy(model.position);
-    uiGroup.position.y += 0.5;
+
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+
+    ui.position.copy(center);
+    ui.position.y += 0.6;
 }
 
 // =====================
@@ -236,12 +265,12 @@ function pick(controller) {
 
     const hits = raycaster.intersectObject(model, true);
 
-    if (hits.length > 0) {
-        selected = hits[0].object;
-    }
+    if (hits.length > 0) selected = hits[0].object;
 }
 
-// UI CLICK
+// =====================
+// CLICK UI
+// =====================
 function click(controller) {
 
     tempMatrix.identity().extractRotation(controller.matrixWorld);
@@ -258,9 +287,6 @@ function click(controller) {
     }
 }
 
-// =====================
-// CONTROLLER EVENTS FIXED
-// =====================
 right.addEventListener("select", () => click(right));
 left.addEventListener("select", () => click(left));
 
@@ -269,10 +295,14 @@ left.addEventListener("select", () => click(left));
 // =====================
 renderer.setAnimationLoop(() => {
 
-    if (move) updateMove();
-    if (rotate) updateRotate();
+    updateCursors();
 
-    updateZoom();
+    if (!locked) {
+        if (move) updateMove();
+        if (rotate) updateRotate();
+        updateZoom();
+    }
+
     attachUI();
 
     renderer.render(scene, camera);
