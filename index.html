@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>MR TRUE GRAB (NO LAG)</title>
+<title>MR Highlight UI</title>
 
 <style>
 body { margin:0; overflow:hidden; }
@@ -70,15 +70,11 @@ function makeLaser(color){
 left.add(makeLaser(0x00ff00));
 right.add(makeLaser(0xff0000));
 
-// =====================
 // MODE
-// =====================
 let mode="move";
 let frozen=false;
 
-// =====================
-// UI (BELLA)
-// =====================
+// UI
 const raycaster=new THREE.Raycaster();
 const tempMatrix=new THREE.Matrix4();
 
@@ -95,9 +91,14 @@ for(let i=0;i<modes.length;i++){
 
     const group=new THREE.Group();
 
+    const mat=new THREE.MeshStandardMaterial({
+        color:modes[i].color,
+        emissive:0x000000
+    });
+
     const box=new THREE.Mesh(
         new THREE.BoxGeometry(0.09,0.09,0.09),
-        new THREE.MeshStandardMaterial({color:modes[i].color})
+        mat
     );
 
     const canvas=document.createElement("canvas");
@@ -124,15 +125,17 @@ for(let i=0;i<modes.length;i++){
     group.position.set(-0.35 + i*0.23, 0.7, -0.6);
 
     group.userData.mode=modes[i].name.toLowerCase();
+    group.userData.baseColor = modes[i].color;
 
     scene.add(group);
     ui.push(group);
 }
 
-// SELECT MODE
+// INPUT
 left.addEventListener("selectstart",()=>left.userData.click=true);
 left.addEventListener("selectend",()=>left.userData.click=false);
 
+// HIGHLIGHT SYSTEM
 function updateUI(){
 
     tempMatrix.identity().extractRotation(left.matrixWorld);
@@ -142,10 +145,23 @@ function updateUI(){
 
     const hits=raycaster.intersectObjects(ui,true);
 
+    // RESET
+    ui.forEach(b=>{
+        const mesh = b.children[0];
+        mesh.material.color.set(b.userData.baseColor);
+        mesh.material.emissive.set(0x000000);
+    });
+
     if(hits.length){
 
         const root=hits[0].object.parent;
+        const mesh = root.children[0];
 
+        // 🔥 HIGHLIGHT
+        mesh.material.emissive.set(0x222222);
+        mesh.material.color.offsetHSL(0,0,0.2);
+
+        // CLICK
         if(left.userData.click){
 
             if(root.userData.mode==="lock"){
@@ -157,47 +173,37 @@ function updateUI(){
     }
 }
 
-// =====================
-// TRUE GRAB SYSTEM
-// =====================
+// TRUE GRAB MOVE
 let grabbing=false;
-let originalParent=null;
 
-// START GRAB
 right.addEventListener("selectstart",()=>{
 
     if(!model || frozen) return;
 
     if(mode==="move"){
-
         grabbing=true;
-
-        originalParent = model.parent;
-
-        right.attach(model); // 🔥 ATTACCO ALLA MANO
+        right.attach(model);
     }
 });
 
-// STOP GRAB
 right.addEventListener("selectend",()=>{
 
     if(!grabbing) return;
 
     grabbing=false;
-
-    scene.attach(model); // 🔥 RITORNA NELLA SCENA
+    scene.attach(model);
 });
 
-// ROTATE + ZOOM CONTINUO
-function updateOtherModes(){
+// OTHER MODES
+function updateOther(){
 
-    if(!model || frozen || !grabbing) return;
+    if(!model || frozen) return;
 
-    if(mode==="rotate"){
+    if(mode==="rotate" && grabbing){
         model.rotation.y += 0.03;
     }
 
-    if(mode==="zoom"){
+    if(mode==="zoom" && grabbing){
         model.scale.multiplyScalar(1.01);
     }
 }
@@ -206,7 +212,7 @@ function updateOtherModes(){
 renderer.setAnimationLoop(()=>{
 
     updateUI();
-    updateOtherModes();
+    updateOther();
 
     renderer.render(scene,camera);
 });
