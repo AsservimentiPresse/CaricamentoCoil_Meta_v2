@@ -104,7 +104,7 @@ addRay(controller0, 0xff0000);
 addRay(controller1, 0x00ff00);
 
 // =====================
-// INPUT STATE (UNCHANGED)
+// INPUT STATE (NON MODIFICATO)
 // =====================
 let draggingMove = false;
 let rotating = false;
@@ -117,17 +117,19 @@ const raycaster = new THREE.Raycaster();
 const tempMatrix = new THREE.Matrix4();
 
 // =====================
-// CONTROLLER EVENTS (UNCHANGED)
+// CONTROLLER EVENTS (NON MODIFICATI)
 // =====================
 controller0.addEventListener("selectstart", () => {
     draggingMove = true;
     pinchActive = true;
+    controller0.userData.isSelecting = true;
 });
 
 controller0.addEventListener("selectend", () => {
     draggingMove = false;
     pinchActive = false;
     baseDistance = null;
+    controller0.userData.isSelecting = false;
 });
 
 controller1.addEventListener("selectstart", () => {
@@ -142,7 +144,7 @@ controller1.addEventListener("selectend", () => {
 });
 
 // =====================
-// MOVE / ROTATE / SCALE (UNCHANGED)
+// MOVE
 // =====================
 function updateMove(controller) {
 
@@ -159,6 +161,9 @@ function updateMove(controller) {
     model.position.lerp(target, 0.25);
 }
 
+// =====================
+// ROTATE
+// =====================
 const lastPos = new THREE.Vector3();
 
 function updateRotate(controller) {
@@ -175,6 +180,9 @@ function updateRotate(controller) {
     lastPos.copy(current);
 }
 
+// =====================
+// PINCH SCALE
+// =====================
 function updatePinch() {
 
     if (!model || !pinchActive) {
@@ -196,7 +204,7 @@ function updatePinch() {
 }
 
 // =====================
-// 🎨 5 COLOR BUTTONS (NEW)
+// 🎨 5 COLOR BUTTONS (FIXED XR)
 // =====================
 const buttons = [];
 const colors = [
@@ -207,11 +215,11 @@ const colors = [
     0xff00ff
 ];
 
-// posizione davanti all'utente
+// POSIZIONE: PIÙ VICINI E PIÙ BASSI (FACILI DA COLPIRE)
 for (let i = 0; i < colors.length; i++) {
 
     const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.05, 16, 16),
+        new THREE.SphereGeometry(0.08, 16, 16),
         new THREE.MeshStandardMaterial({
             color: colors[i],
             emissive: colors[i],
@@ -219,7 +227,7 @@ for (let i = 0; i < colors.length; i++) {
         })
     );
 
-    mesh.position.set((i - 2) * 0.15, 1.2, -1);
+    mesh.position.set((i - 2) * 0.18, 0.6, -0.6);
     mesh.userData.color = colors[i];
 
     scene.add(mesh);
@@ -227,13 +235,8 @@ for (let i = 0; i < colors.length; i++) {
 }
 
 // =====================
-// COLOR PICK (RAYCAST)
+// COLOR PICK XR (CORRETTO)
 // =====================
-let canClick = false;
-
-controller0.addEventListener("selectstart", () => canClick = true);
-controller0.addEventListener("selectend", () => canClick = false);
-
 function updateColorPick() {
 
     if (!model) return;
@@ -245,7 +248,7 @@ function updateColorPick() {
 
     const hit = raycaster.intersectObjects(buttons);
 
-    // hover glow
+    // reset glow
     buttons.forEach(b => b.material.emissiveIntensity = 0.4);
 
     if (hit.length) {
@@ -253,7 +256,7 @@ function updateColorPick() {
         const obj = hit[0].object;
         obj.material.emissiveIntensity = 1.2;
 
-        if (canClick) {
+        if (controller0.userData.isSelecting) {
 
             const color = obj.userData.color;
 
